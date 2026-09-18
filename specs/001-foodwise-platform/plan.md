@@ -21,6 +21,124 @@ Build FoodWise as a single Next.js application using the App Router, strict Type
 **Constraints**: Financial mutations must be idempotent and auditable; authorization must be server-side; secrets must remain server-only; degraded provider or database states must not corrupt orders or balances  
 **Scale/Scope**: Initial release supports students, vendors, sponsors, and internal support/admin roles; design for horizontal web scaling and asynchronous provider events
 
+## Design System and UX Planning
+
+### Design Principles
+
+- Keep the product warm, trust-building, and accessibility-first, rather than clinical or discount-heavy.
+- Prioritize mobile-first discovery, because students are most likely to browse and order on a phone.
+- Make affordability and eligibility feel clear without exposing sensitive details or creating confusion in the checkout flow.
+- Use a calm, reassuring palette that communicates freshness, security, and institutional credibility.
+
+### Color Palette
+
+FoodWise should use a grounded student-marketplace palette that feels practical, affordable, and trustworthy.
+
+- Primary brand: `#1F7A5A` — deep green for the main brand, key CTAs, and student-benefit messaging.
+- Primary dark: `#123C32` — used for navigation, headers, and strong text emphasis.
+- Accent warmth: `#F6B94A` — amber highlight for price badges, urgency calls, and positive status accents.
+- Secondary accent: `#E96F3D` — warm orange for promotional chips, alert highlights, or meal-related emphasis.
+- Background shell: `#F6F3EE` — warm off-white for page backgrounds and content surfaces.
+- Surface cards: `#FFFFFF` — clean white for product cards, forms, and order summaries.
+- Neutral text: `#1F2A27` — dark slate for headings and primary body text.
+- Muted text: `#5A6B66` — secondary labels, helper text, and timestamps.
+- Border / subtle: `#DCE4E0` — light divider lines and inactive UI states.
+- Success: `#2D8A5F` — confirmation states and positive eligibility updates.
+- Error: `#C54A4A` — validation errors and failed payment states.
+- Warning: `#D9822B` — inventory expiry or caution messaging.
+
+Color usage rules:
+
+- Use green as the default trust/brand color and amber only for pricing, urgency, or status emphasis.
+- Do not rely on color alone to convey dietary information, availability, or status; pair it with labels and text.
+- Maintain a minimum WCAG-compliant contrast ratio for body text, interactive controls, and focus indicators.
+
+### Typography
+
+Use a modern sans-serif pairing that feels approachable and institutional without feeling too corporate.
+
+- Headings: `Manrope` or `Plus Jakarta Sans` — friendly but structured, suitable for strong product headlines and section titles.
+- Body copy: `Inter` — highly legible and comfortable for dense UI such as filters, forms, and food details.
+- Monospace: `JetBrains Mono` or `SFMono-Regular` for money values, IDs, and technical status labels.
+
+Recommended type scale:
+
+- Display / hero: 40-48px, 700-800 weight, tight letter spacing on large screens.
+- H1: 32-36px, 700 weight.
+- H2: 24-28px, 700 weight.
+- H3: 20-22px, 600 weight.
+- Body: 16px, 400-500 weight, line-height 1.5.
+- Small label: 12-14px, 500-600 weight, uppercase or sentence-case depending on context.
+
+Typography rules:
+
+- Keep body text comfortable and readable with 1.5 line-height for forms and product details.
+- Use strong emphasis for price and eligibility states, but avoid excessive all-caps across long content.
+- Ensure all form labels, validation text, and status text are announced accessibly.
+
+### Layout and Information Architecture
+
+The interface should be optimized for a mobile-first, goal-driven experience with a straightforward progression from discovery to checkout to status.
+
+#### Core Layout Patterns
+
+- Mobile-first single-column stack with sticky bottom navigation or sticky top utility bar for key actions.
+- Tablet and desktop layouts use a 12-column grid with fluid content containers and a max width of 1200px.
+- Use a generous 8px spacing system: 4, 8, 12, 16, 20, 24, 32, 40, 48.
+- Cards should have soft shadows, moderate radius, and clear white surfaces on the warm neutral background.
+
+#### Primary Screen Structure
+
+1. Student home / discovery screen
+   - sticky top navigation with FoodWise branding and sign-in state
+   - search bar and filter chips near the top
+   - featured meal categories or deals
+   - store cards and item cards in a responsive grid
+   - promotional banner for student pricing or support resources
+
+2. Store and menu detail screen
+   - hero image or banner
+   - store metadata: hours, location, fulfillment options, dietary labeling
+   - filterable menu sections
+   - item cards with price, discount, availability, and quantity controls
+
+3. Checkout and payment screen
+   - summary card with student discount breakdown
+   - reassessment of price and availability before confirmation
+   - status panel for payment and order state
+   - accessible error messaging and retry flows
+
+4. Student dashboard / support screen
+   - overview cards for orders, support applications, and tracker status
+   - clear grouping of personal data and permissions
+   - segmented navigation and status indicators
+
+5. Vendor dashboard
+   - left-hand navigation for stores, menus, pricing, and availability
+   - review panels for published versions, moderation status, and validation feedback
+   - table-like or list-based inventory management with action controls
+
+#### Interaction and Accessibility Standards
+
+- Minimum touch target size: 44x44px.
+- Input fields should have labels, helper text, and clear validation messaging.
+- Interactive elements must show visible focus rings with contrast-safe colors.
+- Use semantic headings, landmarks, and landmarks for forms and navigation.
+- No critical information should depend on hover alone; mobile and keyboard users must have equivalent access.
+
+### Design System Deliverables
+
+Use the following as implementation standards for the first UI pass:
+
+- Tailwind theme tokens for colors, spacing, radii, shadows, and type scale.
+- Shared card, button, input, badge, and alert component patterns.
+- Responsive layouts for mobile, tablet, and desktop breakpoints.
+- Accessibility test checklist for keyboard navigation, focus order, and screen-reader labeling.
+
+### Recommended Initial Visual Direction
+
+FoodWise should feel like a modern campus marketplace: practical, encouraging, and safe. The design should communicate affordability without looking discount-driven, and the interface should make student eligibility and checkout confidence feel clear and transparent.
+
 ## Constitution Check
 
 *GATE: Must pass before implementation begins and be re-checked at the end of each phase.*
