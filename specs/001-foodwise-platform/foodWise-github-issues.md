@@ -175,3 +175,31 @@ As a student, I want to record food I have, see what is nearing expiry, and log 
 ### Implementation Notes
 
 Use server-side mutations for inventory changes and keep the authoritative quantity in the database. Client-side state may improve responsiveness but must not replace server validation or the audit trail.
+
+## Issue 8: Operational Integrity and Support Review
+
+**Labels**: `priority:P3`, `feature:operations`, `feature:admin`, `security`, `audit`
+
+### User Story
+
+As a support or admin operator, I want to review audited exceptions, reconcile financial events, and resolve account or order issues so that FoodWise can recover safely from failures.
+
+### Acceptance Criteria
+
+- [ ] An authorized operator can view redacted exceptions for failed webhooks, reconciliation mismatches, payment disputes, or account or order anomalies.
+- [ ] The interface shows the relevant event timeline, affected records, and the safe next-action path without exposing unrelated student data.
+- [ ] A user without the required permission cannot access restricted exception data, corrective actions, or sensitive financial evidence.
+- [ ] Corrective actions such as refunds, manual adjustments, order holds, or status overrides require a reason and an authorized actor.
+- [ ] Every operator action records the actor, role, timestamp, reason, affected entity, correlation ID, and status transition in an immutable audit trail.
+- [ ] Reconciliation jobs detect drift between provider events, ledger entries, and order state and surface actionable exceptions with redacted evidence.
+- [ ] If a provider outage, duplicate payment, or data incident occurs, the operator can follow a documented runbook to recover without broad data exposure.
+- [ ] Sensitive data remains redacted in logs, exports, and UI views; personally identifiable or financial record details are masked unless specific permission is granted.
+- [ ] Tests cover the authorization matrix, exception workflows, redaction, reconciliation drift, manual corrections, and the accessibility of operator tooling.
+
+### Security Notes
+
+Operational tooling must be least-privilege and role-scoped. Disable or restrict any action that would allow broad data access outside the approved support workflow. All corrective actions should be immutable and auditable.
+
+### Release Gate
+
+This workflow supports operational safety and financial integrity but may ship after the primary student, vendor, and payment flows are stable. It is required before broader production operations, dispute handling, or reconciliation automation at scale.
