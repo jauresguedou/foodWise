@@ -7,6 +7,8 @@
 
 Build FoodWise as a single Next.js application using the App Router, strict TypeScript, and Tailwind CSS. The application will use Server Components for data-driven pages and Server Actions or Route Handlers for validated mutations. A PostgreSQL database will be the source of truth for users, vendors, stores, menus, orders, financial records, support applications, and food inventory. Authentication and role-based authorization will be enforced on the server. Stripe will handle payment collection and provider webhooks, while FoodWise will maintain its own auditable order and money ledgers. Loan and sponsorship workflows will begin as controlled internal support workflows and require legal/compliance review before any regulated lending or automated credit decisioning is introduced.
 
+> **MVP note (2026-09-23)**: The MVP uses a reduced scope, a five-entity data model, and a lighter `src/` tree. See [architecture.md](./architecture.md) and the spec's MVP Scope section. Where they differ from this plan, they govern the MVP.
+
 ## Technical Context
 
 **Language/Version**: TypeScript 5, strict mode; no `any` or implicit `any`  
@@ -52,6 +54,8 @@ Color usage rules:
 - Use green as the default trust/brand color and amber only for pricing, urgency, or status emphasis.
 - Do not rely on color alone to convey dietary information, availability, or status; pair it with labels and text.
 - Maintain a minimum WCAG-compliant contrast ratio for body text, interactive controls, and focus indicators.
+
+Implementation tokens for this palette, including darker text variants for amber, orange, success, warning, and error so they pass WCAG AA, are in [architecture.md §4](./architecture.md#4-design-theme-and-branding).
 
 ### Typography
 
