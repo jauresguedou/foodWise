@@ -2,8 +2,55 @@
 
 **Feature Branch**: `001-foodwise-platform`  
 **Created**: 2026-09-11  
+**Revised**: 2026-09-23 (MVP scope and clarifications)  
 **Status**: Draft  
 **Input**: FoodWise platform plan for affordable student meals, ordering, student discounts, payments, food support, sponsorships, and food tracking.
+
+## MVP Scope
+
+The full vision below is larger than one semester for a three-person team. The MVP targets the core loop: a vendor lists meals, a student finds one, and the student orders it for pickup.
+
+| Story | Priority | MVP status | Notes |
+| --- | --- | --- | --- |
+| US1 Student account and eligibility | P1 | **In MVP** (simplified) | Email/password sign-in; eligibility by school email domain. |
+| US2 Discover affordable meals | P1 | **In MVP** | First feature built. |
+| US3 Place and pay for an order | P1 | **In MVP** (simplified) | Pickup orders with pay-at-pickup. Stripe test mode is a stretch goal. |
+| US4 Vendor manages a store and menu | P1 | **In MVP** (simplified) | Menu items edited in place; orders keep price snapshots instead of menu versions. |
+| US7 Track food and reduce waste | P2 | Stretch | Independent of ordering; build only if the MVP ships early. |
+| US6 Meal-plan sponsorships | P2 | Post-MVP | Depends on real payments and privacy review. |
+| US5 Meal support and food loans | P2 | Post-MVP | Loans are regulated lending. No code until legal and institutional review. |
+| US8 Operational integrity and support | P3 | Post-MVP | Admins use seed data and database tools during the MVP. |
+
+The MVP's routes, components, data model, and design system are in [architecture.md](./architecture.md).
+
+## Clarifications
+
+### Session 2026-09-23
+
+These answers resolve gaps in the original draft. They apply to the MVP; later phases may revisit them.
+
+- **Q: How is student eligibility verified?** → A: At registration, the email domain must be on a configured allowlist of school domains (for example `byu.edu`). An account on an allowlisted domain gets `studentVerifiedAt` set. Emailed confirmation codes are a follow-up. (FR-002)
+- **Q: Can people browse without an account?** → A: Yes. Stores and meals are public, and student prices are shown with a "verified students" label. Adding to cart and ordering require a verified student account. (FR-004)
+- **Q: What does "nearby" mean?** → A: Each store has a campus and address. Discovery filters by campus. There is no geolocation or distance sort in the MVP.
+- **Q: Who delivers?** → A: Nobody in the MVP. All orders are pickup. Stores keep a `deliveryAvailable` flag for later.
+- **Q: What fees and taxes apply?** → A: No platform fees. Menu prices are tax-inclusive. Order total = sum of (unit price × quantity), where unit price is the student price when one exists and the buyer is verified. (FR-005)
+- **Q: What form do student discounts take?** → A: A fixed `studentPriceMinor` per menu item, which must be lower than `priceMinor`. Percentage rules and time windows are out of scope.
+- **Q: How is payment collected?** → A: MVP orders are pay-at-pickup, so the order is placed with payment status `UNPAID`. The vendor marks it `PAID` at pickup. Stripe Checkout in test mode is the stretch goal for US3 and replaces this when it ships. (FR-006, FR-007)
+- **Q: Can a cart hold items from several stores?** → A: No. Each order belongs to one store. Adding an item from a second store asks the student to clear the cart first.
+- **Q: What is the order lifecycle?** → A: `PLACED → PREPARING → READY → COMPLETED`, with `CANCELLED` possible before `READY`. Payment status is tracked on its own field: `UNPAID`, `PAID`, `REFUNDED`.
+- **Q: How are menu versions handled?** → A: Menu items are edited in place. Each order line stores a snapshot of the item name and prices, so past orders never change. Items that have been ordered are archived instead of deleted.
+- **Q: Who approves vendors and stores?** → A: New stores start as `PENDING_REVIEW`. For the MVP, an admin publishes them through seed data or a database update. No admin UI yet.
+- **Q: Can one account be both a student and a vendor?** → A: No. Each account has exactly one role: `STUDENT`, `VENDOR`, or `ADMIN`.
+- **Q: What currency?** → A: Multi-currency, based on country. Each store has one currency (an ISO 4217 code such as `USD`, `CAD`, or `GHS`), set from the store's country. Its menu prices, orders, and payments all use that currency. There is no conversion at checkout: a student pays in the store's currency. Each user picks a country at registration. It sets their default campus filter and how numbers and prices are formatted. Money is stored as an integer count of the currency's minor unit (cents for USD, none for JPY). The US is the default country, with USD.
+- **Q: How do price filters work across currencies?** → A: The max-price filter applies only once a campus is selected, so all results share one currency.
+- **Q: What are the rate-limit thresholds?** → A: Sign-in: 5 failed attempts per email per 15 minutes. Other thresholds are set during hardening.
+- **Q: How are success criteria SC-001 and SC-006 measured?** → A: SC-001 is measured by the seeded end-to-end test suite. SC-006 is measured with at least five classmates in an informal usability session.
+
+### Open questions
+
+- Data retention periods for accounts and orders (FR-013) are undecided. Needed before any real student data is stored.
+- Auth.js is now maintained under the Better Auth project. The team should confirm Auth.js v5 is still the right choice before starting the auth issue.
+- Should prices also show an approximate conversion into the viewer's own currency (for example, an international student browsing a US campus)? That needs an exchange-rate source. Post-MVP unless the team decides otherwise.
 
 ## User Stories & Testing
 
@@ -168,6 +215,8 @@ As a support or admin operator, I want to review audited exceptions, reconcile f
 - **SponsorCampaign and SponsorshipCommitment**: Privacy-preserving meal-plan funding relationships.
 - **FoodItem, InventoryEntry, and ConsumptionLog**: Personal food tracking and waste events.
 - **AuditEvent, IdempotencyKey, and WebhookEvent**: Security, reliability, and financial integrity records.
+
+**MVP entities**: the MVP implements five of these: **User** (a vendor is a User with the `VENDOR` role), **Store**, **MenuItem**, **Order**, and **OrderItem**. Cart contents live in an HTTP-only cookie and are re-priced on the server. The order's idempotency key is a unique column on Order. The remaining entities arrive with their post-MVP stories. Field-level definitions are in [architecture.md](./architecture.md#3-data-model).
 
 ## Success Criteria
 
