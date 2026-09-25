@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { Meal } from "./page";
+import { formatMoney } from "../src/lib/money";
+import { AddToCartButton } from "./_components/add-to-cart-button";
 
 type Props = { meals: Meal[] };
 const categories = ["All meals", "Bowls", "Sandwiches", "Vegetarian", "Breakfast"] as const;
@@ -65,6 +67,7 @@ export default function MealExplorer({ meals }: Props) {
 }
 
 function MealCard({ meal }: { meal: Meal }) {
+  const studentSavingsMinor = meal.priceMinor - meal.studentPriceMinor;
   return (
     <article className="meal-card">
       <div className={`meal-art ${meal.accent}`} aria-hidden="true"><span>{meal.category === "Breakfast" ? "☼" : meal.category === "Sandwiches" ? "▰" : "✳"}</span></div>
@@ -74,8 +77,10 @@ function MealCard({ meal }: { meal: Meal }) {
         <div className="tags" aria-label="Dietary information">
           {meal.dietary.length ? meal.dietary.map((item) => <span className="tag" key={item}>{item}</span>) : <span className="tag">Dietary info available</span>}
         </div>
-        <div className="meal-footer"><div><span className="student-price">${meal.studentPrice.toFixed(2)}</span><span className="regular-price">${meal.price.toFixed(2)}</span><span className="price-note">student</span></div><span className="availability">{meal.available}</span></div>
+        <div className="meal-footer"><div><span className="student-price">{formatMoney(meal.studentPriceMinor, "USD")}</span><span className="regular-price">{formatMoney(meal.priceMinor, "USD")}</span><span className="price-note">student</span></div><span className="availability">{meal.available}</span></div>
         <p className="fulfillment"><span aria-hidden="true">●</span> {meal.fulfillment.join("  ·  ")}</p>
+        <p className="sr-only">Save {formatMoney(studentSavingsMinor, "USD")} with a verified student account.</p>
+        <AddToCartButton menuItemId={meal.id} />
       </div>
     </article>
   );
