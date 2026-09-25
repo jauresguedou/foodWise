@@ -1,13 +1,15 @@
+import Link from "next/link";
 import MealExplorer from "./meal-explorer";
 
 export type Meal = {
   id: string;
+  storeId: string;
   name: string;
   store: string;
   neighborhood: string;
   category: "Bowls" | "Sandwiches" | "Vegetarian" | "Breakfast";
-  price: number;
-  studentPrice: number;
+  priceMinor: number;
+  studentPriceMinor: number;
   available: string;
   fulfillment: string[];
   dietary: string[];
@@ -18,12 +20,13 @@ export type Meal = {
 const meals: Meal[] = [
   {
     id: "harvest-bowl",
+    storeId: "store-juniper-grain",
     name: "Harvest grain bowl",
     store: "Juniper & Grain",
     neighborhood: "North Campus",
     category: "Bowls",
-    price: 12.5,
-    studentPrice: 8.95,
+    priceMinor: 1250,
+    studentPriceMinor: 895,
     available: "Ready in 10-15 min",
     fulfillment: ["Pickup", "Delivery"],
     dietary: ["Vegetarian", "Gluten-free"],
@@ -32,12 +35,13 @@ const meals: Meal[] = [
   },
   {
     id: "sunrise-breakfast",
+    storeId: "store-daily-table",
     name: "Sunrise breakfast wrap",
     store: "The Daily Table",
     neighborhood: "Library District",
     category: "Breakfast",
-    price: 9.75,
-    studentPrice: 6.5,
+    priceMinor: 975,
+    studentPriceMinor: 650,
     available: "Ready in 5-10 min",
     fulfillment: ["Pickup"],
     dietary: ["Vegetarian"],
@@ -46,12 +50,13 @@ const meals: Meal[] = [
   },
   {
     id: "spicy-chicken",
+    storeId: "store-lantern-kitchen",
     name: "Spicy chicken banh mi",
     store: "Lantern Kitchen",
     neighborhood: "East Village",
     category: "Sandwiches",
-    price: 11.25,
-    studentPrice: 7.99,
+    priceMinor: 1125,
+    studentPriceMinor: 799,
     available: "Ready in 15-20 min",
     fulfillment: ["Pickup", "Delivery"],
     dietary: [],
@@ -60,12 +65,13 @@ const meals: Meal[] = [
   },
   {
     id: "green-pasta",
+    storeId: "store-olive-rye",
     name: "Green goddess pasta",
     store: "Olive & Rye",
     neighborhood: "West End",
     category: "Vegetarian",
-    price: 13,
-    studentPrice: 8.5,
+    priceMinor: 1300,
+    studentPriceMinor: 850,
     available: "Ready in 20-25 min",
     fulfillment: ["Pickup", "Delivery"],
     dietary: ["Vegetarian", "Contains dairy"],
@@ -84,9 +90,10 @@ export default function Home() {
         </a>
         <nav aria-label="Primary navigation">
           <a className="active" href="#discover">Discover</a>
-          <a href="#orders">Your orders</a>
+          <a href="/cart">Cart</a>
+          <Link href="/orders">Your orders</Link>
         </nav>
-        <button className="profile-button" type="button" aria-label="Open profile menu">JS</button>
+        <Link className="profile-button" href="/login" aria-label="Sign in">JS</Link>
       </header>
       <section className="hero" id="top">
         <div className="hero-copy">

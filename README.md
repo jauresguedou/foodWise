@@ -1,5 +1,15 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Checkout setup
+
+1. Copy `.env.example` to `.env.local` and set a PostgreSQL `DATABASE_URL`, a random `AUTH_SECRET`, a different random `CART_SECRET`, and the supported `STUDENT_EMAIL_DOMAINS`.
+2. Add Stripe test-mode keys from the Stripe Dashboard to `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`. Do not use live keys for local testing.
+3. Set `APP_URL` to the local or deployed HTTPS origin.
+4. Use a MongoDB Atlas replica-set cluster (required for multi-document transactions). Run `npm install`, `npm run db:generate`, `npm run db:push`, and `npm run db:seed` from this directory.
+5. Start the app with `npm run dev`. For local webhooks, use Stripe CLI to forward events to `/api/webhooks/stripe` and set the printed signing secret as `STRIPE_WEBHOOK_SECRET`.
+
+Checkout stays unavailable until its database and Stripe test-mode settings are configured. Payment success is recorded only by a verified Stripe webhook; the browser return page is informational.
+
 ## Getting Started
 
 First, run the development server:

@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  VENDOR
+  ADMIN
+}
+
+enum StoreStatus {
+  PENDING_REVIEW
+  PUBLISHED
+  SUSPENDED
+}
+
+enum OrderStatus {
+  PAYMENT_PENDING
+  PLACED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  EXPIRED
+  DISPUTED
+  DISPUTE_WON
+  DISPUTE_LOST
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum WebhookProcessingStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum LedgerEntryType {
+  CAPTURE
+  REFUND
+  DISPUTE_DEBIT
+  DISPUTE_CREDIT
+}
+
+model User {
+  id                String   @id @default(cuid()) @map("_id")
+  email             String   @unique
+  name              String
+  passwordHash      String
+  role              UserRole @default(STUDENT)
+  studentVerifiedAt DateTime?
+  countryCode       String   @default("US")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  stores            Store[]
+  orders            Order[]
+  loginAttempts     LoginAttempt[]
+
+  @@index([role, studentVerifiedAt])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid()) @map("_id")
+  emailHash String
+  failedAt  DateTime @default(now())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([emailHash, failedAt])
+}
+
+model Store {
+  id                String      @id @default(cuid()) @map("_id")
+  ownerId           String
+  name              String
+  slug              String      @unique
+  description       String
+  neighborhood      String
+  currency          String      @default("USD")
+  status            StoreStatus @default(PUBLISHED)
+  pickupAvailable   Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  owner             User        @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  menuItems         MenuItem[]
+  orders            Order[]
+  @@index([ownerId])
+}
+
+model MenuItem {
+  id                String   @id @map("_id")
+  storeId           String
+  name              String
+  description       String
+  category          String
+  priceMinor        Int
+  studentPriceMinor Int?
+  inventoryQuantity Int?
+  isAvailable       Boolean  @default(true)
+  archivedAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  orderItems        OrderItem[]
+
+  @@index([storeId, isAvailable, archivedAt])
+}
+
+model Order {
+  id                String      @id @default(cuid()) @map("_id")
+  studentId         String
+  storeId           String
+  status            OrderStatus @default(PAYMENT_PENDING)
+  subtotalMinor     Int
+  discountMinor     Int
+  feeMinor          Int         @default(0)
+  totalMinor        Int
+  currency          String
+  idempotencyKey    String
+  stripeSessionId   String?     @unique
+  pickupNote        String?
+  correlationId     String
+  placedAt          DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  student           User        @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  store             Store       @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  items             OrderItem[]
+  payment           Payment?
+  auditEvents       AuditEvent[]
+  ledgerEntries     PaymentLedgerEntry[]
+
+  @@unique([studentId, idempotencyKey])
+  @@index([studentId, createdAt])
+  @@index([storeId, createdAt])
+}
+
+model OrderItem {
+  id                String   @id @default(cuid()) @map("_id")
+  orderId           String
+  menuItemId        String
+  quantity          Int
+  nameSnapshot      String
+  basePriceMinor    Int
+  unitPriceMinor    Int
+  lineTotalMinor    Int
+  inventoryReserved Boolean  @default(false)
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem          MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([menuItemId])
+}
+
+model Payment {
+  id                    String        @id @default(cuid()) @map("_id")
+  orderId               String        @unique
+  provider              String        @default("stripe")
+  providerSessionId     String?       @unique
+  providerPaymentIntentId String?      @unique
+  status                PaymentStatus @default(PENDING)
+  amountMinor           Int
+  refundedMinor         Int           @default(0)
+  providerEventCreatedAt DateTime?
+  currency              String
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  order                 Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  webhookEvents         WebhookEvent[]
+  auditEvents           AuditEvent[]
+  ledgerEntries         PaymentLedgerEntry[]
+}
+
+model WebhookEvent {
+  id                String                  @id @default(cuid()) @map("_id")
+  providerEventId   String                  @unique
+  type              String
+  payloadHash       String
+  status            WebhookProcessingStatus @default(RECEIVED)
+  paymentId         String?
+  receivedAt        DateTime                @default(now())
+  processingStartedAt DateTime?
+  processedAt       DateTime?
+  lastError         String?
+  payment           Payment?                @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([status, receivedAt])
+  @@index([paymentId])
+}
+
+model AuditEvent {
+  id                String   @id @default(cuid()) @map("_id")
+  actor             String
+  action            String
+  entityType        String
+  entityId          String
+  reason            String
+  occurredAt        DateTime @default(now())
+  correlationId     String
+  providerEventId   String?
+  orderId           String?
+  paymentId         String?
+  order             Order?   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  payment           Payment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId, occurredAt])
+  @@index([correlationId])
+  @@index([orderId])
+  @@index([paymentId])
+}
+
+model PaymentLedgerEntry {
+  id              String          @id @default(cuid()) @map("_id")
+  idempotencyKey  String          @unique
+  sourceProviderEventId String
+  paymentId       String
+  orderId         String
+  entryType       LedgerEntryType
+  amountMinor     Int
+  currency        String
+  actor           String
+  occurredAt      DateTime
+  correlationId   String
+  payment         Payment         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, occurredAt])
+  @@index([paymentId, occurredAt])
+  @@index([sourceProviderEventId])
+}
