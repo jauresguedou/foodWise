@@ -1,0 +1,9 @@
+# Docs are hand-formatted; Prettier would re-pad every table.
+*.md
+
+package-lock.json
+.next/
+coverage/
+playwright-report/
+test-results/
+src/generated/
