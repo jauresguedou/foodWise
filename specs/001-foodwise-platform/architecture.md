@@ -16,7 +16,7 @@ Route segments are kebab-case. Dynamic segments name the thing they hold (`[menu
 | `/stores` | All published stores, filter by campus | Public | 05 |
 | `/stores/[storeSlug]` | Store info, hours, pickup details, and its menu | Public | 05 |
 | `/login` | Sign in | Guest | 05 |
-| `/register` | Create account; school email sets student eligibility | Guest | 05 |
+| `/register` | Create account; a verified school email sets student eligibility | Guest | 05 |
 | `/account` | Profile and eligibility status | Signed in | 05 |
 | `/cart` | Review cart with server-calculated totals | Verified student | 05 |
 | `/checkout` | Confirm pickup details and place the order | Verified student | 05 |
@@ -74,7 +74,7 @@ The plan's full `src/domain` layer is deferred. The MVP uses a lighter tree:
 
 ```text
 src/
-├── auth/            # Auth.js config, getSession(), requireStudent(), requireVendor()
+├── auth/            # Better Auth config, getSession(), requireUser(), requireVerifiedStudent(), requireVendor()
 ├── db/client.ts     # single Prisma client
 ├── server/
 │   ├── queries/     # read functions used by Server Components: getMeals(), getStoreBySlug()
@@ -375,7 +375,9 @@ erDiagram
 
 ### Later entities
 
-Added with their stories, not in the MVP schema: `WebhookEvent` (Stripe stretch), `AuditEvent` (hardening), `FoodItem` and `ConsumptionLog` (tracker), and the support, loan, and sponsorship tables.
+Auth tables, added in issue #16: Better Auth's `Session`, `Account`, and `Verification`, plus `SecurityEvent`, the audit log for sign-in and access decisions. `SecurityEvent` stores a keyed hash of the email, never the address, and the per-email rate limits count these rows.
+
+Added with their stories, not in the MVP schema: `WebhookEvent` (Stripe stretch), wider `AuditEvent` coverage (hardening), `FoodItem` and `ConsumptionLog` (tracker), and the support, loan, and sponsorship tables.
 
 ## 4. Design theme and branding
 

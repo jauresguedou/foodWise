@@ -7,7 +7,7 @@ FoodWise is a web app where students find affordable meals from campus food vend
 - **Next.js 16** App Router, **React 19**, **TypeScript 5** (strict)
 - **Tailwind CSS v4** (tokens in `app/globals.css` via `@theme`), **shadcn/ui**, **lucide-react**
 - **PostgreSQL** on Neon, **Prisma ORM**
-- **Auth.js** (Credentials provider, bcrypt), **Zod** for all input validation
+- **Better Auth** (passwordless email codes; no passwords stored), **Zod** for all input validation
 - **Vitest** for unit/integration tests, **Playwright** + `@axe-core/playwright` for e2e and accessibility
 - Prettier and ESLint; run `npm run lint` and `npx tsc --noEmit` before committing
 
@@ -25,7 +25,7 @@ Read the relevant guide in `node_modules/next/dist/docs/` before writing framewo
 ```text
 app/                    routes only (pages, layouts, route handlers)
   (auth)/ (shop)/ (student)/ vendor/ api/
-src/auth/               Auth.js config and session helpers
+src/auth/               Better Auth config and session helpers
 src/db/client.ts        the single Prisma client
 src/server/queries/     read functions for Server Components
 src/server/actions/     "use server" mutations
@@ -76,7 +76,8 @@ Order status: `PLACED → PREPARING → READY → COMPLETED`, or `CANCELLED` bef
 - Server Components read data by calling `src/server/queries/*` directly. Do not `fetch` your own API routes.
 - Mutations are Server Actions in `src/server/actions/*`. Route Handlers are for webhooks and health checks only.
 - Never import `src/db`, `src/server`, or secrets into a client component.
-- Select only the fields the UI needs. Never return `passwordHash`.
+- Select only the fields the UI needs. Never return session tokens, sign-in codes, or `SecurityEvent` rows to the client.
+- Only `src/server/actions/auth.ts` calls Better Auth's `auth.api`. Do not add an `/api/auth` route; it would bypass consent and the per-email rate limits.
 
 **Authorization**
 - Every Server Action and protected query checks the session itself with `requireUser()`, `requireVerifiedStudent()`, or `requireVendor()`, even if `proxy.ts` or a layout already redirected.

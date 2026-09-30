@@ -64,21 +64,108 @@ enum Fulfillment {
   DELIVERY
 }
 
+enum SecurityEventType {
+  REGISTERED
+  SIGN_IN_CODE_SENT
+  SIGN_IN_SUCCEEDED
+  SIGN_IN_FAILED
+  SIGN_IN_RATE_LIMITED
+  ELIGIBILITY_GRANTED
+  ACCESS_DENIED
+  SIGNED_OUT
+}
+
 model User {
   id                String    @id @default(cuid())
   // Lowercased before save.
   email             String    @unique
+  // Set by Better Auth when the student enters a code sent to this address.
+  emailVerified     Boolean   @default(false)
   name              String
+  image             String?
   role              Role      @default(STUDENT)
-  // Null means unverified.
+  // Null means unverified. Set only on the server, after emailVerified,
+  // when the domain is in STUDENT_EMAIL_DOMAINS.
   studentVerifiedAt DateTime?
   // ISO 3166-1 alpha-2.
   countryCode       String    @default("US") @db.Char(2)
+  // Which privacy notice the user agreed to, and when (src/auth/consent.ts).
+  consentVersion    String?
+  consentedAt       DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  stores Store[]
-  orders Order[]
+  stores   Store[]
+  orders   Order[]
+  sessions Session[]
+  accounts Account[]
+}
+
+// Session, Account, and Verification are Better Auth's tables.
+// Field names must match what Better Auth expects.
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  // Random token; the session cookie carries a signed copy.
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Links a user to a sign-in method. Passwordless sign-in stores no credentials here.
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// One-time sign-in codes. Stored hashed.
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+// Audit trail for sign-in and access decisions. Never holds a raw email or
+// code: emailHash is an HMAC, so events can be counted per email for rate
+// limiting without storing the address. No foreign key, so events outlive
+// the user they describe.
+model SecurityEvent {
+  id        String            @id @default(cuid())
+  type      SecurityEventType
+  userId    String?
+  emailHash String?
+  createdAt DateTime          @default(now())
+
+  @@index([type, emailHash, createdAt])
+  @@index([userId, createdAt])
 }
 
 model Store {

@@ -45,7 +45,14 @@ export default defineConfig({
           env: {
             DATABASE_URL: testDatabaseUrl,
             DATABASE_URL_UNPOOLED: testDatabaseUrl,
+            BETTER_AUTH_SECRET: 'integration-tests-only-secret-0123456789',
+            BETTER_AUTH_URL: 'http://localhost:3000',
+            STUDENT_EMAIL_DOMAINS: 'byu.edu',
+            EMAIL_TRANSPORT: 'memory',
           },
+          // Better Auth imports next/headers itself. Inlining it lets that
+          // import reach the test stand-in in tests/integration/helpers.
+          server: { deps: { inline: ['better-auth', /@better-auth\//] } },
           globalSetup: ['tests/setup/integration-global.ts'],
           // One shared database, so test files run one at a time.
           fileParallelism: false,
