@@ -1,42 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FoodWise
 
-## Getting Started
+FoodWise is a web app that helps students find affordable meals, order food, and pay at student prices.
 
-First, run the development server:
+Team members: Jaures Guedou, Charles Ukoh, Nicholas Kigozi, Ronald Mullo
+
+Scope and decisions live in [`specs/001-foodwise-platform/`](specs/001-foodwise-platform/): start with `spec.md` and `architecture.md`.
+
+## Getting started
+
+You need Node.js 24 (see `.nvmrc`).
 
 ```bash
+npm install
+npx playwright install chromium   # once, for end-to-end tests
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Start the dev server |
+| `npm run build` | Production build |
+| `npm run typecheck` | TypeScript check with no output |
+| `npm run lint` | ESLint |
+| `npm run format` | Format code with Prettier (`format:check` only checks) |
+| `npm test` | Unit tests with Vitest (`test:watch` to re-run on save) |
+| `npm run test:e2e` | Builds the app, then runs Playwright and axe accessibility checks |
 
-## Learn More
+CI runs typecheck, lint, format check, unit tests, build, and the end-to-end suite on every pull request. Run the same commands locally before you push.
 
-To learn more about Next.js, take a look at the following resources:
+## Tests
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-Team members: Jaures Guedou
-              Charles Ukoh
-              Nicholas Kigozi
-
-Project description:FoodWise is a web app that helps students find affordable meals, order food, and pay at student prices              
+- `tests/unit`: pure logic and client components (Vitest, jsdom)
+- `tests/e2e`: full journeys in a real browser (Playwright), with axe on each page
