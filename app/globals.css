@@ -44,6 +44,25 @@ a {
   max-width: 1240px;
   padding: 0 28px;
 }
+.header-actions {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+.workspace-switch {
+  background: var(--green);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 10px 13px;
+}
+.workspace-switch:hover {
+  background: #1f4634;
+}
+.workspace-switch:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
 .brand {
   align-items: center;
   display: flex;
@@ -458,6 +477,20 @@ nav a:hover {
   position: absolute;
   width: 1px;
   clip: rect(0, 0, 0, 0);
+}
+@media (max-width: 430px) {
+  .site-header nav a[href='#orders'],
+  .site-header .profile-button {
+    display: none;
+  }
+  .header-actions {
+    gap: 0;
+  }
+  .workspace-switch {
+    font-size: 10px;
+    padding: 9px 10px;
+    white-space: nowrap;
+  }
 }
 @media (max-width: 700px) {
   .site-header {
