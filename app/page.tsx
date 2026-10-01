@@ -1,6 +1,15 @@
 import MealExplorer from "./meal-explorer";
 import Link from "next/link";
 
+import { getMeals } from "@/src/server/queries/meals";
+import { mealFiltersSchema, resolveDefaultCampus } from "@/src/validation/meal-filters";
+
+type HomePageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+// The page now gets its data from the server query layer instead of a local hardcoded array.
+// This keeps the UI aligned with the issue 5 read rules: filtered, validated, and currency-safe.
 export type Meal = {
   id: string;
   name: string;
@@ -16,66 +25,45 @@ export type Meal = {
   accent: string;
 };
 
-const meals: Meal[] = [
-  {
-    id: "harvest-bowl",
-    name: "Harvest grain bowl",
-    store: "Juniper & Grain",
-    neighborhood: "North Campus",
-    category: "Bowls",
-    price: 12.5,
-    studentPrice: 8.95,
-    available: "Ready in 10-15 min",
-    fulfillment: ["Pickup", "Delivery"],
-    dietary: ["Vegetarian", "Gluten-free"],
-    description: "Roasted squash, farro, greens, pepitas, and lemon tahini.",
-    accent: "sage",
-  },
-  {
-    id: "sunrise-breakfast",
-    name: "Sunrise breakfast wrap",
-    store: "The Daily Table",
-    neighborhood: "Library District",
-    category: "Breakfast",
-    price: 9.75,
-    studentPrice: 6.5,
-    available: "Ready in 5-10 min",
+function toExplorerMeals(items: Awaited<ReturnType<typeof getMeals>>["items"]): Meal[] {
+  return items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    store: item.store.name,
+    neighborhood: item.store.campus,
+    category: item.category as Meal["category"],
+    price: item.priceMinor / 100,
+    studentPrice: item.displayPriceMinor / 100,
+    available: item.isAvailable ? "Ready in 10-15 min" : "Currently unavailable",
     fulfillment: ["Pickup"],
-    dietary: ["Vegetarian"],
-    description: "Eggs, cheddar, black beans, roasted salsa, and avocado crema.",
-    accent: "gold",
-  },
-  {
-    id: "spicy-chicken",
-    name: "Spicy chicken banh mi",
-    store: "Lantern Kitchen",
-    neighborhood: "East Village",
-    category: "Sandwiches",
-    price: 11.25,
-    studentPrice: 7.99,
-    available: "Ready in 15-20 min",
-    fulfillment: ["Pickup", "Delivery"],
-    dietary: [],
-    description: "Lemongrass chicken, pickled vegetables, cucumber, and chili mayo.",
-    accent: "coral",
-  },
-  {
-    id: "green-pasta",
-    name: "Green goddess pasta",
-    store: "Olive & Rye",
-    neighborhood: "West End",
-    category: "Vegetarian",
-    price: 13,
-    studentPrice: 8.5,
-    available: "Ready in 20-25 min",
-    fulfillment: ["Pickup", "Delivery"],
-    dietary: ["Vegetarian", "Contains dairy"],
-    description: "Basil pesto, broccoli, peas, parmesan, and toasted breadcrumbs.",
-    accent: "mint",
-  },
-];
+    dietary: item.dietaryTags,
+    description: item.description,
+    accent: item.category === "Breakfast" ? "gold" : item.category === "Sandwiches" ? "coral" : item.category === "Vegetarian" ? "mint" : "sage",
+  }));
+}
 
-export default function Home() {
+export default async function HomePage({ searchParams }: HomePageProps) {
+  // Next.js 16 passes search params as a Promise, so the page must await them before creating the server query.
+  // We validate and normalize the params here so the query layer receives only safe values.
+  const params = searchParams ? await searchParams : {};
+  const dietary = Array.isArray(params.dietary)
+    ? params.dietary.flatMap((item) => (typeof item === "string" ? [item] : []))
+    : typeof params.dietary === "string"
+      ? [params.dietary]
+      : [];
+
+  const parsedFilters = mealFiltersSchema.parse({
+    q: typeof params.q === "string" ? params.q : "",
+    campus: resolveDefaultCampus(typeof params.campus === "string" ? params.campus : undefined, undefined),
+    dietary,
+    maxPriceMinor: typeof params.maxPriceMinor === "string" ? Number(params.maxPriceMinor) : undefined,
+    storeSlug: typeof params.storeSlug === "string" ? params.storeSlug : "",
+    page: typeof params.page === "string" ? Number(params.page) : 1,
+  });
+
+  const result = getMeals(parsedFilters, undefined, false);
+  const meals = toExplorerMeals(result.items);
+
   return (
     <main>
       <header className="site-header">
@@ -86,8 +74,11 @@ export default function Home() {
         <nav aria-label="Primary navigation">
           <a className="active" href="#discover">Discover</a>
           <a href="#orders">Your orders</a>
+          
         </nav>
         <div className="header-actions">
+          <Link className="workspace-switch" href="/stores">Stores</Link>
+          <Link className="workspace-switch" href="/support">Support & Loan</Link>
           <Link className="workspace-switch" href="/vendor">Vendor workspace</Link>
           <button className="profile-button" type="button" aria-label="Open profile menu">JS</button>
         </div>
