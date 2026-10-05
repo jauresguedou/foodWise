@@ -1,0 +1,180 @@
+// FoodWise MVP schema. Decisions: specs/001-foodwise-platform/architecture.md §3.
+// Money is an Int count of the currency's minor unit, in fields ending in `Minor`.
+// Check constraints Prisma cannot express live in the migration SQL.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  VENDOR
+  ADMIN
+}
+
+enum StoreStatus {
+  PENDING_REVIEW
+  PUBLISHED
+  SUSPENDED
+}
+
+enum DietaryTag {
+  VEGETARIAN
+  VEGAN
+  GLUTEN_FREE
+  DAIRY_FREE
+  HALAL
+  KOSHER
+}
+
+// The US "major 9" allergens.
+enum Allergen {
+  MILK
+  EGGS
+  FISH
+  SHELLFISH
+  TREE_NUTS
+  PEANUTS
+  WHEAT
+  SOY
+  SESAME
+}
+
+enum OrderStatus {
+  PLACED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+enum Fulfillment {
+  PICKUP
+  DELIVERY
+}
+
+model User {
+  id                String    @id @default(cuid())
+  // Lowercased before save.
+  email             String    @unique
+  name              String
+  role              Role      @default(STUDENT)
+  // Null means unverified.
+  studentVerifiedAt DateTime?
+  // ISO 3166-1 alpha-2.
+  countryCode       String    @default("US") @db.Char(2)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  stores Store[]
+  orders Order[]
+}
+
+model Store {
+  id                String      @id @default(cuid())
+  ownerId           String
+  name              String
+  slug              String      @unique
+  description       String
+  campus            String
+  address           String
+  countryCode       String      @db.Char(2)
+  // ISO 4217. Locked once the store has orders.
+  currency          String      @db.Char(3)
+  hoursText         String
+  pickupAvailable   Boolean     @default(true)
+  deliveryAvailable Boolean     @default(false)
+  status            StoreStatus @default(PENDING_REVIEW)
+  imageUrl          String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  owner     User       @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  menuItems MenuItem[]
+  orders    Order[]
+
+  @@index([status, campus])
+  @@index([ownerId])
+}
+
+model MenuItem {
+  id                String       @id @default(cuid())
+  storeId           String
+  name              String
+  description       String
+  category          String
+  priceMinor        Int
+  studentPriceMinor Int?
+  dietaryTags       DietaryTag[]
+  allergens         Allergen[]
+  isAvailable       Boolean      @default(true)
+  // Soft delete: archived items stay linked to past orders.
+  archivedAt        DateTime?
+  imageUrl          String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  store      Store       @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  orderItems OrderItem[]
+
+  @@index([storeId, isAvailable])
+}
+
+model Order {
+  id                      String        @id @default(cuid())
+  studentId               String
+  storeId                 String
+  status                  OrderStatus   @default(PLACED)
+  paymentStatus           PaymentStatus @default(UNPAID)
+  fulfillment             Fulfillment   @default(PICKUP)
+  subtotalMinor           Int
+  discountMinor           Int
+  totalMinor              Int
+  // Copied from the store when the order is placed, never from input.
+  currency                String        @db.Char(3)
+  // Generated when checkout renders; a repeated submit returns the same order.
+  idempotencyKey          String        @unique
+  pickupNote              String?
+  stripeCheckoutSessionId String?       @unique
+  placedAt                DateTime      @default(now())
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  student User        @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  store   Store       @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  items   OrderItem[]
+
+  @@index([studentId, placedAt])
+  @@index([storeId, status])
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String
+  menuItemId     String
+  quantity       Int
+  nameSnapshot   String
+  basePriceMinor Int
+  // The price actually charged: student price or base price.
+  unitPriceMinor Int
+  lineTotalMinor Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([menuItemId])
+}
