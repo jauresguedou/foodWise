@@ -87,8 +87,8 @@ function SignInCodeEmail({ code, expiresInMinutes }: SignInCodeEmailProps) {
             </Text>
           </Section>
           <Text style={{ color: colors.inkSoft, fontSize: '14px', margin: 0 }}>
-            It expires in {expiresInMinutes} minutes. If you didn&apos;t ask
-            for this code, you can ignore this email.
+            It expires in {expiresInMinutes} minutes. If you didn&apos;t ask for
+            this code, you can ignore this email.
           </Text>
         </Container>
       </Body>
