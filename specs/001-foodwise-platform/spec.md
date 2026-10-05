@@ -12,7 +12,7 @@ The full vision below is larger than one semester for a three-person team. The M
 
 | Story | Priority | MVP status | Notes |
 | --- | --- | --- | --- |
-| US1 Student account and eligibility | P1 | **In MVP** (simplified) | Email/password sign-in; eligibility by school email domain. |
+| US1 Student account and eligibility | P1 | **In MVP** (simplified) | Passwordless sign-in with an emailed code; eligibility by school email domain. |
 | US2 Discover affordable meals | P1 | **In MVP** | First feature built. |
 | US3 Place and pay for an order | P1 | **In MVP** (simplified) | Pickup orders with pay-at-pickup. Stripe test mode is a stretch goal. |
 | US4 Vendor manages a store and menu | P1 | **In MVP** (simplified) | Menu items edited in place; orders keep price snapshots instead of menu versions. |
@@ -29,7 +29,8 @@ The MVP's routes, components, data model, and design system are in [architecture
 
 These answers resolve gaps in the original draft. They apply to the MVP; later phases may revisit them.
 
-- **Q: How is student eligibility verified?** → A: At registration, the email domain must be on a configured allowlist of school domains (for example `byu.edu`). An account on an allowlisted domain gets `studentVerifiedAt` set. Emailed confirmation codes are a follow-up. (FR-002)
+- **Q: How is student eligibility verified?** → A: The email domain must be on a configured allowlist of school domains (for the MVP, `byupathway.edu`), and the student must prove they own the address by entering a code emailed to it. `studentVerifiedAt` is set on the first successful sign-in. (FR-002; revised 2026-09-29, when sign-in became passwordless. Checking the domain alone let anyone type a school address.)
+- **Q: How do people sign in?** → A: Passwordless. FoodWise emails a 6-digit code that expires in 5 minutes, using Better Auth's email OTP plugin. FoodWise stores no passwords. (Decided 2026-09-29, issue #16.)
 - **Q: Can people browse without an account?** → A: Yes. Stores and meals are public, and student prices are shown with a "verified students" label. Adding to cart and ordering require a verified student account. (FR-004)
 - **Q: What does "nearby" mean?** → A: Each store has a campus and address. Discovery filters by campus. There is no geolocation or distance sort in the MVP.
 - **Q: Who delivers?** → A: Nobody in the MVP. All orders are pickup. Stores keep a `deliveryAvailable` flag for later.
@@ -49,7 +50,6 @@ These answers resolve gaps in the original draft. They apply to the MVP; later p
 ### Open questions
 
 - Data retention periods for accounts and orders (FR-013) are undecided. Needed before any real student data is stored.
-- Auth.js is now maintained under the Better Auth project. The team should confirm Auth.js v5 is still the right choice before starting the auth issue.
 - Should prices also show an approximate conversion into the viewer's own currency (for example, an international student browsing a US campus)? That needs an exchange-rate source. Post-MVP unless the team decides otherwise.
 
 ## User Stories & Testing

@@ -34,6 +34,20 @@ npm run test:integration
 npm run db:test:down        # stop it; data is discarded
 ```
 
+## Sign-in
+
+Passwordless: FoodWise emails a 6-digit code, and stores no passwords. A verified address on a domain in `STUDENT_EMAIL_DOMAINS` gets student prices.
+
+1. Set `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `STUDENT_EMAIL_DOMAINS` in `.env.local` (see `.env.example`).
+2. In development, leave `RESEND_API_KEY` empty. Sign-in codes print in the terminal running `npm run dev`.
+
+How it fits together:
+
+- `src/server/actions/auth.ts`: `register`, `requestSignInCode`, `verifySignInCode`, `signOut`. There is no `/api/auth` route; only these actions call Better Auth.
+- `src/auth/session.ts`: `getSession`, `requireUser`, `requireVerifiedStudent`, `requireVendor`. Call one in **every** protected page, Server Action, and query. `proxy.ts` only redirects for convenience.
+- Rate limits: 5 wrong codes, or 5 codes sent, per email per 15 minutes (`src/server/rate-limit.ts`).
+- `SecurityEvent` records sign-ins and denied access. It never stores an email address, only a keyed hash.
+
 ## Scripts
 
 | Command | What it does |
