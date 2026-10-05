@@ -2,8 +2,17 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import type { ReactElement } from 'react';
+import { Resend } from 'resend';
 
-export type OutgoingEmail = { to: string; subject: string; text: string };
+// text is required: the terminal and test transports read it, and it is the
+// fallback for clients that block HTML. react becomes the HTML body.
+export type OutgoingEmail = {
+  to: string;
+  subject: string;
+  text: string;
+  react?: ReactElement;
+};
 
 const transports = ['resend', 'console', 'memory', 'file'] as const;
 type Transport = (typeof transports)[number];
@@ -57,7 +66,12 @@ async function writeToOutbox(email: OutgoingEmail): Promise<void> {
 
   await mkdir(directory, { recursive: true });
   const fileName = `${Date.now()}-${randomUUID()}.json`;
-  await writeFile(path.join(directory, fileName), JSON.stringify(email));
+  // A React element does not serialize to JSON, so only the text goes to disk.
+  const { to, subject, text } = email;
+  await writeFile(
+    path.join(directory, fileName),
+    JSON.stringify({ to, subject, text })
+  );
 }
 
 async function sendWithResend(email: OutgoingEmail): Promise<void> {
@@ -67,22 +81,21 @@ async function sendWithResend(email: OutgoingEmail): Promise<void> {
     throw new Error('RESEND_API_KEY and EMAIL_FROM must both be set.');
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: [email.to],
-      subject: email.subject,
-      text: email.text,
-    }),
+  // Created per send: the constructor throws when the key is missing, and the
+  // other transports never need a key.
+  const { error } = await new Resend(apiKey).emails.send({
+    from,
+    to: [email.to],
+    subject: email.subject,
+    text: email.text,
+    react: email.react,
   });
-  // The recipient stays out of the error, so it never reaches logs.
-  if (!response.ok) {
-    throw new Error(`Resend rejected the email (HTTP ${response.status}).`);
+  // Resend's message can name the recipient, so only the name and status go
+  // into the error. That keeps addresses out of logs.
+  if (error) {
+    throw new Error(
+      `Resend rejected the email (${error.name}, HTTP ${error.statusCode ?? 'n/a'}).`
+    );
   }
 }
 
