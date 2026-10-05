@@ -1,4 +1,6 @@
 import MealExplorer from './meal-explorer';
+import Link from 'next/link';
+import { UserMenu } from '@/src/components/layout/UserMenu';
 
 export type Meal = {
   id: string;
@@ -95,13 +97,12 @@ export default function Home() {
           </a>
           <a href="#orders">Your orders</a>
         </nav>
-        <button
-          className="profile-button"
-          type="button"
-          aria-label="Open profile menu"
-        >
-          JS
-        </button>
+        <div className="header-actions">
+          <Link className="workspace-switch" href="/vendor">
+            Vendor workspace
+          </Link>
+          <UserMenu />
+        </div>
       </header>
       <section className="hero" id="top">
         <div className="hero-copy">

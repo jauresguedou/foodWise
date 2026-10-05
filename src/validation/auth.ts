@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isCountryCode } from '@/src/lib/countries';
 
 const emailSchema = z
   .string({ error: 'Enter your email address.' })
@@ -18,7 +19,7 @@ export const registerSchema = z.object({
     .string({ error: 'Choose your country.' })
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z]{2}$/, { error: 'Choose your country.' }),
+    .refine(isCountryCode, { error: 'Choose your country.' }),
   // An unchecked checkbox is missing from the form data entirely.
   consent: z.literal('on', {
     error: 'You need to agree to this before we can create your account.',

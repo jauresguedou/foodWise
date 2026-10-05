@@ -40,6 +40,9 @@ Passwordless: FoodWise emails a 6-digit code, and stores no passwords. A verifie
 
 1. Set `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `STUDENT_EMAIL_DOMAINS` in `.env.local` (see `.env.example`).
 2. In development, leave `RESEND_API_KEY` empty. Sign-in codes print in the terminal running `npm run dev`.
+3. Open http://localhost:3000/register, create an account, and copy the code from the terminal. A `@byupathway.edu` address becomes a verified student; any other address signs in unverified.
+
+Pages: `/register`, `/login`, and `/account` (profile and student status). The **Sign in** link and account menu are in the home page header.
 
 How it fits together:
 
@@ -70,4 +73,4 @@ CI runs typecheck, lint, format check, unit tests, build, and the end-to-end sui
 
 - `tests/unit`: pure logic and client components (Vitest, jsdom)
 - `tests/integration`: queries, actions, and database rules against real Postgres
-- `tests/e2e`: full journeys in a real browser (Playwright), with axe on each page
+- `tests/e2e`: full journeys in a real browser (Playwright), with axe on each page. Needs the Docker database (`npm run db:test:up`). It builds the app and serves it on port 3100 with test-only settings, so it never touches Neon; sign-in codes are written to `test-results/email-outbox/`.

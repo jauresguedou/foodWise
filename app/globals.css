@@ -9,6 +9,15 @@
   --green: #285742;
   --lime: #d9ed8f;
   --cream: #f0ead8;
+  /* Added for forms and account pages (#17). All pass WCAG AA as text on
+     white and on --paper; --field-border passes 3:1 for input edges. The
+     design tokens in #11 will replace these. */
+  --ink-soft: #4a544e;
+  --field-border: #767f79;
+  --green-hover: #1d4231;
+  --danger: #b3261e;
+  --success: #1e6a46;
+  --warning: #9e5f1f;
 }
 * {
   box-sizing: border-box;
@@ -43,6 +52,25 @@ a {
   margin: 0 auto;
   max-width: 1240px;
   padding: 0 28px;
+}
+.header-actions {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+.workspace-switch {
+  background: var(--green);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 10px 13px;
+}
+.workspace-switch:hover {
+  background: #1f4634;
+}
+.workspace-switch:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
 }
 .brand {
   align-items: center;
@@ -458,6 +486,20 @@ nav a:hover {
   position: absolute;
   width: 1px;
   clip: rect(0, 0, 0, 0);
+}
+@media (max-width: 430px) {
+  .site-header nav a[href='#orders'],
+  .site-header .profile-button {
+    display: none;
+  }
+  .header-actions {
+    gap: 0;
+  }
+  .workspace-switch {
+    font-size: 10px;
+    padding: 9px 10px;
+    white-space: nowrap;
+  }
 }
 @media (max-width: 700px) {
   .site-header {
