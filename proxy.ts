@@ -21,6 +21,5 @@ export const config = {
     '/cart/:path*',
     '/checkout/:path*',
     '/orders/:path*',
-    '/vendor/:path*',
   ],
 };

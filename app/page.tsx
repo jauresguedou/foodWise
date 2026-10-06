@@ -1,5 +1,6 @@
 import MealExplorer from './meal-explorer';
 import Link from 'next/link';
+import { UserMenu } from '@/src/components/layout/UserMenu';
 
 export type Meal = {
   id: string;
@@ -94,19 +95,13 @@ export default function Home() {
           <a className="active" href="#discover">
             Discover
           </a>
-          <a href="#orders">Your orders</a>
+          <Link href="/orders">Your orders</Link>
         </nav>
         <div className="header-actions">
           <Link className="workspace-switch" href="/vendor">
             Vendor workspace
           </Link>
-          <button
-            className="profile-button"
-            type="button"
-            aria-label="Open profile menu"
-          >
-            JS
-          </button>
+          <UserMenu />
         </div>
       </header>
       <section className="hero" id="top">

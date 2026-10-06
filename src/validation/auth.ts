@@ -38,6 +38,10 @@ export const verifyCodeSchema = z.object({
   callbackUrl: z.string().optional(),
 });
 
+export const authCallbackSearchParamsSchema = z.object({
+  callbackUrl: z.string().optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type VerifyCodeInput = z.infer<typeof verifyCodeSchema>;

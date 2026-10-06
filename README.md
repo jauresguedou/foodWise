@@ -39,7 +39,17 @@ npm run db:test:down        # stop it; data is discarded
 Passwordless: FoodWise emails a 6-digit code, and stores no passwords. A verified address on a domain in `STUDENT_EMAIL_DOMAINS` gets student prices.
 
 1. Set `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `STUDENT_EMAIL_DOMAINS` in `.env.local` (see `.env.example`).
-2. In development, leave `RESEND_API_KEY` empty. Sign-in codes print in the terminal running `npm run dev`.
+2. In development, set `EMAIL_TRANSPORT=console`; sign-in codes print in the terminal running `npm run dev`.
+
+### Brevo email delivery
+
+For development, keep `EMAIL_TRANSPORT=console`; sign-in codes print in the local dev terminal. To send real email:
+
+1. Create a Brevo account and verify the sender address or domain that will send sign-in codes.
+2. Create an API key in Brevo and set `EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY`, and `EMAIL_FROM` in `.env.local`. `EMAIL_FROM` must be the verified sender, for example `FoodWise <signin@your-domain.example>`.
+3. Add the same three settings to the Production environment in Vercel. Keep `EMAIL_TRANSPORT=console` for local development unless you want local sign-in codes sent through Brevo.
+
+The Brevo transport sends plain-text messages through the Brevo transactional email API and never logs API keys or message bodies. `EMAIL_TRANSPORT=resend` remains available as an alternative provider.
 
 How it fits together:
 
