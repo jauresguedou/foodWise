@@ -47,6 +47,9 @@ export async function UserMenu() {
         <Link href="/account" className={menuItemClassName}>
           Your account
         </Link>
+        <Link href="/orders" className={menuItemClassName}>
+          Your orders
+        </Link>
         <form action={signOut}>
           <button type="submit" className={menuItemClassName}>
             Sign out

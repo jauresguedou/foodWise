@@ -7,6 +7,7 @@ import { RegisterForm } from '@/src/components/auth/RegisterForm';
 import { textLinkClassName } from '@/src/components/shared/styles';
 import { getCountryOptions } from '@/src/lib/countries';
 import { safeCallbackUrl } from '@/src/lib/safe-redirect';
+import { authCallbackSearchParamsSchema } from '@/src/validation/auth';
 
 export const metadata: Metadata = {
   title: 'Create an account | FoodWise',
@@ -15,9 +16,14 @@ export const metadata: Metadata = {
 export default async function RegisterPage({
   searchParams,
 }: PageProps<'/register'>) {
-  const { callbackUrl } = await searchParams;
+  const params = await searchParams;
+  // A repeated query parameter arrives as an array. The schema drops it, then
+  // safeCallbackUrl keeps the redirect on this origin.
+  const parsedParams = authCallbackSearchParamsSchema.safeParse({
+    callbackUrl: params.callbackUrl,
+  });
   const target = safeCallbackUrl(
-    typeof callbackUrl === 'string' ? callbackUrl : undefined
+    parsedParams.success ? parsedParams.data.callbackUrl : undefined
   );
   if (await getSession()) redirect(target);
 

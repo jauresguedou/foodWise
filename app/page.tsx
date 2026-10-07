@@ -95,7 +95,7 @@ export default function Home() {
           <a className="active" href="#discover">
             Discover
           </a>
-          <a href="#orders">Your orders</a>
+          <Link href="/orders">Your orders</Link>
         </nav>
         <div className="header-actions">
           <Link className="workspace-switch" href="/vendor">

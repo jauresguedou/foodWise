@@ -14,11 +14,12 @@ export type OutgoingEmail = {
   react?: ReactElement;
 };
 
-const transports = ['resend', 'console', 'memory', 'file'] as const;
+const transports = ['brevo', 'resend', 'console', 'memory', 'file'] as const;
 type Transport = (typeof transports)[number];
 
-// EMAIL_TRANSPORT picks where email goes. Without it: Resend when
-// RESEND_API_KEY is set, otherwise the dev server's terminal.
+// EMAIL_TRANSPORT picks where email goes. An unknown value is an error, never
+// a silent fallback. Without it: Brevo when BREVO_API_KEY is set, then Resend
+// when RESEND_API_KEY is set, otherwise the dev server's terminal.
 //   memory: integration tests read it with takeMemoryOutbox()
 //   file:   end-to-end tests read JSON files from EMAIL_OUTBOX_DIR
 function getTransport(): Transport {
@@ -26,6 +27,10 @@ function getTransport(): Transport {
   if (transports.some((transport) => transport === configured)) {
     return configured as Transport;
   }
+  if (configured) {
+    throw new Error(`Unsupported EMAIL_TRANSPORT: ${configured}.`);
+  }
+  if (process.env.BREVO_API_KEY) return 'brevo';
   return process.env.RESEND_API_KEY ? 'resend' : 'console';
 }
 
@@ -40,7 +45,7 @@ export async function sendEmail(email: OutgoingEmail): Promise<void> {
       // Sign-in codes must never land in production logs.
       if (process.env.NODE_ENV === 'production') {
         throw new Error(
-          'Email is not configured. Set RESEND_API_KEY and EMAIL_FROM.'
+          'Email is not configured. Set a production email transport.'
         );
       }
       console.info(
@@ -49,6 +54,9 @@ export async function sendEmail(email: OutgoingEmail): Promise<void> {
       return;
     case 'file':
       await writeToOutbox(email);
+      return;
+    case 'brevo':
+      await sendWithBrevo(email);
       return;
     case 'resend':
       await sendWithResend(email);
@@ -72,6 +80,69 @@ async function writeToOutbox(email: OutgoingEmail): Promise<void> {
     path.join(directory, fileName),
     JSON.stringify({ to, subject, text })
   );
+}
+
+async function sendWithBrevo(email: OutgoingEmail): Promise<void> {
+  const apiKey = process.env.BREVO_API_KEY;
+  const configuredFrom = process.env.EMAIL_FROM;
+  if (!apiKey || !configuredFrom) {
+    throw new Error('BREVO_API_KEY and EMAIL_FROM must both be set.');
+  }
+  const sender = parseSender(configuredFrom);
+  if (!isEmailAddress(email.to)) {
+    throw new Error('Brevo recipient must be a valid email address.');
+  }
+  if (/[\r\n]/.test(email.subject)) {
+    throw new Error('Email subject cannot contain line breaks.');
+  }
+
+  // Brevo takes HTML as a string, so the React body is rendered here. Resend
+  // takes the element itself. Loaded on demand: the other transports and the
+  // text-only emails never need it.
+  const htmlContent = email.react
+    ? await (await import('@react-email/render')).render(email.react)
+    : undefined;
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender,
+      to: [{ email: email.to }],
+      subject: email.subject,
+      textContent: email.text,
+      ...(htmlContent ? { htmlContent } : {}),
+    }),
+  });
+  // The provider's response body can name the recipient, so only the status
+  // goes into the error. That keeps addresses out of logs.
+  if (!response.ok) {
+    throw new Error(`Brevo rejected the email (HTTP ${response.status}).`);
+  }
+}
+
+function isEmailAddress(value: string): boolean {
+  return /^[^\s<>@]+@[^\s<>@]+$/.test(value);
+}
+
+function parseSender(value: string): { name?: string; email: string } {
+  const match = /^(?:(.*?)\s*<([^<>]+)>|([^<>]+))$/.exec(value.trim());
+  const name = match?.[1]?.trim();
+  const email = (match?.[2] ?? match?.[3] ?? '').trim();
+  if (
+    !match ||
+    !isEmailAddress(email) ||
+    (name !== undefined && /[\r\n]/.test(name))
+  ) {
+    throw new Error(
+      'EMAIL_FROM must be a valid email address or name and address.'
+    );
+  }
+  return name ? { name, email } : { email };
 }
 
 async function sendWithResend(email: OutgoingEmail): Promise<void> {

@@ -175,3 +175,30 @@ As a student, I want to record food I have, see what is nearing expiry, and log 
 ### Implementation Notes
 
 Use server-side mutations for inventory changes and keep the authoritative quantity in the database. Client-side state may improve responsiveness but must not replace server validation or the audit trail.
+
+
+## Issue 8: [Frontend] /login, /register, and /account pages
+
+### User Story
+Accessible sign-in and registration forms, and a page that shows eligibility status.
+
+### Tasks
+
+LoginForm and RegisterForm (client) using useActionState with the auth Server Actions
+
+Register form explains what data is collected and why, with a consent checkbox
+
+/account: name, email, role, eligibility status; VerificationNotice explains how to become verified
+
+UserMenu in the header: sign in link when signed out; account, orders, sign out when signed in
+
+Redirect back to the original page after sign-in (callbackUrl)
+
+
+### Acceptance criteria
+
+Every field has a visible label; errors are linked with aria-describedby and announced
+
+Focus moves to the first error on a failed submit
+
+Password field supports password managers (autocomplete attributes)
