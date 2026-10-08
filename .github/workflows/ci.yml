@@ -46,12 +46,36 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - run: npm run test:integration
+      # The build loads the auth code, which needs these to be set. They are
+      # CI-only values; nothing connects to the database during the build.
       - run: npm run build
+        env:
+          DATABASE_URL: postgresql://foodwise:foodwise@localhost:5433/foodwise_test
+          BETTER_AUTH_SECRET: ci-build-only-secret-0123456789abcdef
+          BETTER_AUTH_URL: http://localhost:3000
+          STUDENT_EMAIL_DOMAINS: byupathway.edu
 
   e2e:
     name: End-to-end and accessibility
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      # playwright.config.ts points the app at this database.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: foodwise
+          POSTGRES_PASSWORD: foodwise
+          POSTGRES_DB: foodwise_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U foodwise -d foodwise_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      TEST_DATABASE_URL: postgresql://foodwise:foodwise@localhost:5433/foodwise_test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

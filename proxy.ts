@@ -15,6 +15,9 @@ export function proxy(request: NextRequest) {
   return NextResponse.redirect(login);
 }
 
+// /vendor is left out for now: the vendor workspace (#28) is still a demo
+// with no sign-in, and no vendor accounts exist until the seed data (#10).
+// Add '/vendor/:path*' back when the vendor pages call requireVendor() (#23).
 export const config = {
   matcher: [
     '/account/:path*',

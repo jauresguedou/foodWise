@@ -40,6 +40,9 @@ Passwordless: FoodWise emails a 6-digit code, and stores no passwords. A verifie
 
 1. Set `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `STUDENT_EMAIL_DOMAINS` in `.env.local` (see `.env.example`).
 2. In development, set `EMAIL_TRANSPORT=console`; sign-in codes print in the terminal running `npm run dev`.
+3. Open http://localhost:3000/register, create an account, and copy the code from the terminal. A `@byupathway.edu` address becomes a verified student; any other address signs in unverified.
+
+Pages: `/register`, `/login`, and `/account` (profile and student status). The **Sign in** link and account menu are in the home page header.
 
 ### Brevo email delivery
 
@@ -49,7 +52,9 @@ For development, keep `EMAIL_TRANSPORT=console`; sign-in codes print in the loca
 2. Create an API key in Brevo and set `EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY`, and `EMAIL_FROM` in `.env.local`. `EMAIL_FROM` must be the verified sender, for example `FoodWise <signin@your-domain.example>`.
 3. Add the same three settings to the Production environment in Vercel. Keep `EMAIL_TRANSPORT=console` for local development unless you want local sign-in codes sent through Brevo.
 
-The Brevo transport sends plain-text messages through the Brevo transactional email API and never logs API keys or message bodies. `EMAIL_TRANSPORT=resend` remains available as an alternative provider.
+The Brevo transport sends the sign-in code through the Brevo transactional email API and never logs API keys or message bodies. `EMAIL_TRANSPORT=resend` remains available as an alternative provider; it sends the same message through the Resend SDK. Both providers take the HTML body from the React template in `src/server/emails/`, with the plain text as the fallback.
+
+`EMAIL_TRANSPORT` also takes `memory` (integration tests read the outbox with `takeMemoryOutbox()`) and `file` (end-to-end tests read JSON from `EMAIL_OUTBOX_DIR`). Any other value is an error rather than a silent fallback.
 
 How it fits together:
 
@@ -80,4 +85,4 @@ CI runs typecheck, lint, format check, unit tests, build, and the end-to-end sui
 
 - `tests/unit`: pure logic and client components (Vitest, jsdom)
 - `tests/integration`: queries, actions, and database rules against real Postgres
-- `tests/e2e`: full journeys in a real browser (Playwright), with axe on each page
+- `tests/e2e`: full journeys in a real browser (Playwright), with axe on each page. Needs the Docker database (`npm run db:test:up`). It builds the app and serves it on port 3100 with test-only settings, so it never touches Neon; sign-in codes are written to `test-results/email-outbox/`.

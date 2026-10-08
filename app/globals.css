@@ -9,6 +9,15 @@
   --green: #285742;
   --lime: #d9ed8f;
   --cream: #f0ead8;
+  /* Added for forms and account pages (#17). All pass WCAG AA as text on
+     white and on --paper; --field-border passes 3:1 for input edges. The
+     design tokens in #11 will replace these. */
+  --ink-soft: #4a544e;
+  --field-border: #767f79;
+  --green-hover: #1d4231;
+  --danger: #b3261e;
+  --success: #1e6a46;
+  --warning: #9e5f1f;
 }
 * {
   box-sizing: border-box;

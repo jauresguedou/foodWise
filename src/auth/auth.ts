@@ -6,6 +6,7 @@ import { emailOTP } from 'better-auth/plugins';
 import { db } from '@/src/db/client';
 import { grantEligibilityIfQualified } from '@/src/server/eligibility';
 import { sendEmail } from '@/src/server/email';
+import { signInCodeEmail } from '@/src/server/emails/sign-in-code';
 import { recordSecurityEvent } from '@/src/server/security-events';
 
 export const SIGN_IN_CODE_TTL_SECONDS = 5 * 60;
@@ -72,13 +73,7 @@ export const auth = betterAuth({
         if (type !== 'sign-in') return;
         await sendEmail({
           to: email,
-          subject: 'Your FoodWise sign-in code',
-          text: [
-            `Your FoodWise sign-in code is ${otp}.`,
-            `It expires in ${SIGN_IN_CODE_TTL_SECONDS / 60} minutes.`,
-            '',
-            "If you didn't ask for this code, you can ignore this email.",
-          ].join('\n'),
+          ...signInCodeEmail(otp, SIGN_IN_CODE_TTL_SECONDS / 60),
         });
         await recordSecurityEvent('SIGN_IN_CODE_SENT', { email });
       },
