@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { getStudentEmailDomains } from '@/src/auth/eligibility';
 import { requireUser } from '@/src/auth/session';
 import { VerificationNotice } from '@/src/components/auth/VerificationNotice';
@@ -41,6 +42,10 @@ export default async function AccountPage({
     <>
       <SimpleHeader />
       <main className="mx-auto w-full max-w-2xl space-y-8 px-4 py-10 sm:py-12">
+        <Link href="/" className={secondaryButtonClassName}>
+          ← Back to home
+        </Link>
+        
         <h1 className="text-3xl font-extrabold tracking-tight">Your account</h1>
 
         {needsVerification ? (
