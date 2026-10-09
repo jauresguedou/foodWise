@@ -1,12 +1,10 @@
 import 'server-only';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
-import { cache } from 'react';
 import type { Role } from '@/src/generated/prisma/enums';
 import { recordSecurityEvent } from '@/src/server/security-events';
 import { auth } from './auth';
-
-// The only user data a page or action gets from the session.
+import { db } from '@/src/db/client';
 export type SessionUser = {
   id: string;
   name: string;
@@ -18,15 +16,36 @@ export type SessionUser = {
 
 export const VERIFICATION_REQUIRED_PATH = '/account?verification=required';
 
-// Reads the session from the database on every request, so a role or
-// eligibility change applies immediately.
-export const getSession = cache(async (): Promise<SessionUser | null> => {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return null;
+export async function getSession(): Promise<SessionUser | null> {
+  console.log('[AUTH DEBUG] getSession() START');
+
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  console.log(
+    '[AUTH DEBUG] getSession() RESULT:',
+    session
+      ? {
+          sessionId: session.session.id,
+          userId: session.user.id,
+          email: session.user.email,
+          role: session.user.role,
+          emailVerified: session.user.emailVerified,
+          studentVerifiedAt: session.user.studentVerifiedAt,
+        }
+      : 'NO SESSION'
+  );
+
+  if (!session) {
+    console.log('[AUTH DEBUG] getSession() RETURNING NULL');
+    return null;
+  }
 
   const { user } = session;
   const role: Role = user.role ?? 'STUDENT';
-  return {
+
+  const result: SessionUser = {
     id: user.id,
     name: user.name,
     email: user.email,
@@ -37,34 +56,81 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
       user.emailVerified &&
       user.studentVerifiedAt != null,
   };
-});
 
-// These helpers are the security boundary. Call one at the top of every
-// protected page, Server Action, and query, even when proxy.ts or a layout
-// already redirected.
+  console.log('[AUTH DEBUG] getSession() RETURNING USER:', {
+    id: result.id,
+    role: result.role,
+    isVerifiedStudent: result.isVerifiedStudent,
+  });
+
+  return result;
+}
 
 export async function requireUser(): Promise<SessionUser> {
+  console.log('[AUTH DEBUG] requireUser() START');
+
   const user = await getSession();
-  if (!user) redirect('/login');
+
+  console.log(
+    '[AUTH DEBUG] requireUser() AFTER getSession:',
+    user
+      ? {
+          id: user.id,
+          role: user.role,
+          isVerifiedStudent: user.isVerifiedStudent,
+        }
+      : 'NULL'
+  );
+
+  if (!user) {
+    console.log('[AUTH DEBUG] requireUser() REDIRECTING TO /login');
+    redirect('/login');
+  }
+
+  console.log('[AUTH DEBUG] requireUser() RETURNING USER');
+
   return user;
 }
 
-// Unverified students are sent to /account, which explains how to verify.
+
+export async function requireAdmin(): Promise<SessionUser> {
+  const user = await requireUser();
+
+  // Check the user's current role directly in the database.
+  const dbUser = await db.user.findUnique({
+    where: { id: user.id },
+    select: { role: true },
+  });
+
+  if (!dbUser || dbUser.role !== 'ADMIN') {
+    await recordSecurityEvent('ACCESS_DENIED', { userId: user.id });
+    notFound();
+  }
+
+  return {
+    ...user,
+    role: dbUser.role,
+  };
+}
+
 export async function requireVerifiedStudent(): Promise<SessionUser> {
   const user = await requireUser();
+
   if (!user.isVerifiedStudent) {
     await recordSecurityEvent('ACCESS_DENIED', { userId: user.id });
     redirect(VERIFICATION_REQUIRED_PATH);
   }
+
   return user;
 }
 
-// Non-vendors get a 404, as if vendor pages did not exist.
 export async function requireVendor(): Promise<SessionUser> {
   const user = await requireUser();
+
   if (user.role !== 'VENDOR') {
     await recordSecurityEvent('ACCESS_DENIED', { userId: user.id });
     notFound();
   }
+
   return user;
 }

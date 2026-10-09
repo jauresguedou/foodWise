@@ -14,6 +14,8 @@ async function createStoreWithItem() {
       description: 'Grain bowls',
       campus: 'BYU Provo',
       address: '1 Campus Dr',
+      contactEmail: 'vendor@example.com',
+      phone: null,
       countryCode: 'US',
       currency: 'USD',
       hoursText: 'Mon-Fri 11am-7pm',

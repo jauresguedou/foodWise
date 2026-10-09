@@ -13,6 +13,7 @@ import { requestSignInCode, verifySignInCode } from '@/src/server/actions/auth';
 
 type CodeFormProps = {
   email: string;
+  accountType?: 'STUDENT' | 'VENDOR';
   callbackUrl?: string;
   onUseDifferentEmail: () => void;
 };
@@ -20,6 +21,7 @@ type CodeFormProps = {
 // Step 2 of sign-in and registration: enter the code we emailed.
 export function CodeForm({
   email,
+  accountType,
   callbackUrl,
   onUseDifferentEmail,
 }: CodeFormProps) {
@@ -73,6 +75,13 @@ export function CodeForm({
         noValidate
       >
         <input type="hidden" name="email" value={email} />
+        {accountType ? (
+        <input
+         type="hidden"
+         name="accountType"
+         value={accountType}
+         />
+        ) : null}
         {callbackUrl ? (
           <input type="hidden" name="callbackUrl" value={callbackUrl} />
         ) : null}

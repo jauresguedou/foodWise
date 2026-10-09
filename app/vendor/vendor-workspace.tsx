@@ -1,8 +1,17 @@
+
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useActionState, useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import './vendor-workspace.css';
+
+import {
+  saveStore,
+  deleteStore,
+  type CreateStoreState,
+} from '@/src/server/actions/vendor';
+import { currencies } from '@/src/lib/currencies';
 
 type Store = {
   name: string;
@@ -12,11 +21,11 @@ type Store = {
   contactEmail: string;
   phone: string;
   fulfillment: string[];
-  status: 'Pending review' | 'Published';
+  status: 'Pending review' | 'Published' | 'Suspended';
 };
 
 type MenuItem = {
-  id: number;
+  id: string;
   name: string;
   category: string;
   description: string;
@@ -38,6 +47,44 @@ type ItemDraft = {
   allergens: string[];
 };
 
+
+type VendorStoreData = {
+  id: string;
+  name: string;
+  campus: string;
+  address: string;
+  hoursText: string;
+  contactEmail: string;
+  phone: string | null;
+  pickupAvailable: boolean;
+  deliveryAvailable: boolean;
+  status: 'PENDING_REVIEW' | 'PUBLISHED' | 'SUSPENDED';
+  currency: string;
+  menuItems: {
+    id: string;
+    name: string;
+    category: string;
+    description: string;
+    priceMinor: number;
+    studentPriceMinor: number | null;
+    dietaryTags: string[];
+    allergens: string[];
+    isAvailable: boolean;
+    archivedAt: Date | null;
+  }[];
+};
+
+type VendorWorkspaceProps = {
+  stores: VendorStoreData[];
+};
+
+
+const initialStoreActionState: CreateStoreState = {
+  success: false,
+  message: '',
+  errors: {},
+};
+
 const dietaryOptions = [
   'Vegetarian',
   'Vegan',
@@ -46,6 +93,7 @@ const dietaryOptions = [
   'Halal',
   'Kosher',
 ];
+
 const allergenOptions = [
   'Milk',
   'Eggs',
@@ -58,20 +106,20 @@ const allergenOptions = [
   'Sesame',
 ];
 
-const initialStore: Store = {
+const demoStore: Store = {
   name: 'Juniper & Grain',
   campus: 'North Campus',
   address: '18 College Avenue',
   hours: 'Mon-Fri, 11:00 AM-7:00 PM',
   contactEmail: 'hello@juniper.example',
   phone: '(555) 014-2026',
-  fulfillment: ['Pickup', 'Delivery'],
+  fulfillment: ['pickup', 'delivery'],
   status: 'Pending review',
 };
 
-const initialItems: MenuItem[] = [
+const demoItems: MenuItem[] = [
   {
-    id: 1,
+    id: 'demo-1',
     name: 'Harvest grain bowl',
     category: 'Bowls',
     description: 'Roasted squash, farro, greens, pepitas, and lemon tahini.',
@@ -83,7 +131,7 @@ const initialItems: MenuItem[] = [
     isArchived: false,
   },
   {
-    id: 2,
+    id: 'demo-2',
     name: 'Crispy tofu greens',
     category: 'Bowls',
     description: 'Ginger tofu, brown rice, cabbage, and sesame-lime dressing.',
@@ -95,7 +143,7 @@ const initialItems: MenuItem[] = [
     isArchived: false,
   },
   {
-    id: 3,
+    id: 'demo-3',
     name: 'Tomato soup & toast',
     category: 'Sides',
     description: 'Slow-roasted tomato soup with sourdough toast.',
@@ -120,71 +168,146 @@ const emptyDraft: ItemDraft = {
 
 function parseMinor(value: string): number | null {
   const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
+
   if (!match) return null;
+
   const whole = Number(match[1]);
   const fraction = Number((match[2] ?? '').padEnd(2, '0'));
   const amount = whole * 100 + fraction;
+
   return Number.isSafeInteger(amount) ? amount : null;
 }
 
-function formatMoney(amountMinor: number): string {
-  return `$${(amountMinor / 100).toFixed(2)}`;
+function formatMoney(amountMinor: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(amountMinor / 100);
 }
 
-export default function VendorWorkspace() {
-  const [store, setStore] = useState(initialStore);
-  const [items, setItems] = useState(initialItems);
+function mapStoreStatus(
+  status: VendorStoreData['status'],
+
+): Store['status'] {
+  if (status === 'PUBLISHED') return 'Published';
+  if (status === 'SUSPENDED') return 'Suspended';
+  return 'Pending review';
+}
+
+
+export default function VendorWorkspace({
+  stores,
+}: VendorWorkspaceProps) {
+  const router = useRouter();
+
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(
+    stores[0]?.id ?? null,
+  );
+
+  const selectedStore =
+    stores.find((item) => item.id === selectedStoreId) ?? null;
+
+  const storeData = selectedStore;
+
+  const store: Store = selectedStore
+    ? {
+        name: selectedStore.name,
+        campus: selectedStore.campus,
+        address: selectedStore.address,
+        hours: selectedStore.hoursText,
+        contactEmail: selectedStore.contactEmail,
+        phone: selectedStore.phone ?? '',
+        fulfillment: [
+          ...(selectedStore.pickupAvailable ? ['pickup'] : []),
+          ...(selectedStore.deliveryAvailable ? ['delivery'] : []),
+        ],
+        status: mapStoreStatus(selectedStore.status),
+      }
+    : {
+        name: '',
+        campus: '',
+        address: '',
+        hours: '',
+        contactEmail: '',
+        phone: '',
+        fulfillment: [],
+        status: 'Pending review',
+      };
+
+const [showStoreForm, setShowStoreForm] = useState(false);
+
+const saveStoreAndClose = useCallback(
+  async (
+    previousState: CreateStoreState,
+    formData: FormData,
+  ): Promise<CreateStoreState> => {
+    const result = await saveStore(previousState, formData);
+
+    if (result.success) {
+      setShowStoreForm(false);
+      setSelectedStoreId(null);
+      router.refresh();
+      }
+    return result;
+  },
+  [router],
+);
+
+const [storeActionState, storeFormAction] = useActionState(
+  saveStoreAndClose,
+  initialStoreActionState,
+);
+
+  const [items, setItems] = useState<MenuItem[]>([]);
+
+  useEffect(() => {
+    setSelectedStoreId((current) => {
+      if (current && stores.some((item) => item.id === current)) {
+        return current;
+      }
+
+      return stores[0]?.id ?? null;
+    });
+  }, [stores]);
+
+  useEffect(() => {
+    setItems(
+      selectedStore
+        ? selectedStore.menuItems.map((item) => ({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            description: item.description,
+            priceMinor: item.priceMinor,
+            studentPriceMinor: item.studentPriceMinor,
+            dietary: [...item.dietaryTags],
+            allergens: [...item.allergens],
+            isAvailable: item.isAvailable,
+            isArchived: item.archivedAt !== null,
+          }))
+        : [],
+    );
+  }, [selectedStore]);
+
+
   const [showItemForm, setShowItemForm] = useState(false);
-  const [showStoreForm, setShowStoreForm] = useState(false);
   const [editingStore, setEditingStore] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [draft, setDraft] = useState<ItemDraft>(emptyDraft);
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
 
   const activeItems = items.filter((item) => !item.isArchived);
-  const listedItems = items.filter((item) => item.isArchived === showArchived);
-  const availableCount = activeItems.filter((item) => item.isAvailable).length;
+  const listedItems = items.filter(
+    (item) => item.isArchived === showArchived,
+  );
+  const availableCount = activeItems.filter(
+    (item) => item.isAvailable,
+  ).length;
   const unavailableCount = activeItems.length - availableCount;
 
   function openStoreForm(edit: boolean) {
     setEditingStore(edit);
     setShowStoreForm(true);
-  }
-
-  function saveStore(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const name = String(formData.get('storeName') ?? '').trim();
-    const campus = String(formData.get('campus') ?? '').trim();
-    const address = String(formData.get('address') ?? '').trim();
-    const hours = String(formData.get('hours') ?? '').trim();
-    const contactEmail = String(formData.get('contactEmail') ?? '').trim();
-    const phone = String(formData.get('phone') ?? '').trim();
-    const fulfillment = ['Pickup', 'Delivery'].filter(
-      (option) => formData.get(option) === 'on'
-    );
-    if (
-      !name ||
-      !campus ||
-      !address ||
-      !hours ||
-      !contactEmail ||
-      fulfillment.length === 0
-    )
-      return;
-
-    setStore({
-      name,
-      campus,
-      address,
-      hours,
-      contactEmail,
-      phone,
-      fulfillment,
-      status: 'Pending review',
-    });
-    if (!editingStore) setItems([]);
-    setShowStoreForm(false);
   }
 
   function toggleChoice(field: 'dietary' | 'allergens', choice: string) {
@@ -198,6 +321,7 @@ export default function VendorWorkspace() {
 
   function saveMenuItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     const nextErrors: Record<string, string> = {};
     const name = draft.name.trim();
     const description = draft.description.trim();
@@ -207,10 +331,15 @@ export default function VendorWorkspace() {
       : null;
 
     if (!name) nextErrors.name = 'Enter a menu item name.';
-    if (!description) nextErrors.description = 'Enter a short description.';
-    if (priceMinor === null || priceMinor <= 0)
+    if (!description) {
+      nextErrors.description = 'Enter a short description.';
+    }
+
+    if (priceMinor === null || priceMinor <= 0) {
       nextErrors.price =
-        'Enter a price greater than $0.00, with up to 2 decimal places.';
+        'Enter a price greater than zero with up to two decimal places.';
+    }
+
     if (
       draft.studentPrice &&
       (studentPriceMinor === null || studentPriceMinor <= 0)
@@ -227,12 +356,15 @@ export default function VendorWorkspace() {
     }
 
     setItemErrors(nextErrors);
-    if (Object.keys(nextErrors).length || priceMinor === null) return;
+
+    if (Object.keys(nextErrors).length > 0 || priceMinor === null) {
+      return;
+    }
 
     setItems((current) => [
       ...current,
       {
-        id: Date.now(),
+        id: `local-${Date.now()}`,
         name,
         category: draft.category,
         description,
@@ -244,24 +376,29 @@ export default function VendorWorkspace() {
         isArchived: false,
       },
     ]);
+
     setDraft(emptyDraft);
     setItemErrors({});
     setShowItemForm(false);
   }
 
-  function toggleAvailability(id: number) {
+  function toggleAvailability(id: string) {
     setItems((current) =>
       current.map((item) =>
-        item.id === id ? { ...item, isAvailable: !item.isAvailable } : item
-      )
+        item.id === id
+          ? { ...item, isAvailable: !item.isAvailable }
+          : item,
+      ),
     );
   }
 
-  function toggleArchived(id: number) {
+  function toggleArchived(id: string) {
     setItems((current) =>
       current.map((item) =>
-        item.id === id ? { ...item, isArchived: !item.isArchived } : item
-      )
+        item.id === id
+          ? { ...item, isArchived: !item.isArchived }
+          : item,
+      ),
     );
   }
 
@@ -271,21 +408,19 @@ export default function VendorWorkspace() {
         <Link className="vendor-brand" href="/" aria-label="FoodWise home">
           <span>FW</span> foodwise <small>VENDOR</small>
         </Link>
+
         <nav className="vendor-topnav" aria-label="Vendor navigation">
-          <a className="selected" href="/vendor">
+          <Link className="selected" href="/vendor">
             Workspace
-          </a>
+          </Link>
           <Link className="vendor-view-switch" href="/">
             Meal explorer
           </Link>
         </nav>
-        <button
-          className="vendor-avatar"
-          type="button"
-          aria-label="Signed in as Juniper vendor"
-        >
-          JV
-        </button>
+
+        <span className="vendor-avatar" aria-label="Vendor workspace">
+          {store.name.slice(0, 1).toUpperCase()}
+        </span>
       </header>
 
       <div className="vendor-container">
@@ -294,11 +429,12 @@ export default function VendorWorkspace() {
             <p className="vendor-eyebrow">
               Vendor workspace / store management
             </p>
-            <h1>Good morning, Juniper.</h1>
+            <h1>Welcome to your workspace.</h1>
             <p className="vendor-subtitle">
               Keep your store details current and today&apos;s menu ready.
             </p>
           </div>
+
           <button
             className="vendor-button vendor-button-secondary"
             onClick={() => openStoreForm(false)}
@@ -308,24 +444,46 @@ export default function VendorWorkspace() {
           </button>
         </div>
 
-        <p className="vendor-demo-note" role="note">
-          Demo workspace. Changes are local and reset when you reload.
-        </p>
+        {stores.length > 0 && (
+          <div className="vendor-store-selector">
+            <label htmlFor="vendor-store-select">
+              Your stores
+            </label>
 
+            <select
+              id="vendor-store-select"
+              value={selectedStoreId ?? ''}
+              onChange={(event) =>
+                setSelectedStoreId(event.target.value)
+              }
+            >
+              {stores.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} â€” {item.campus}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+
+
+        {storeData ? (
+          <>
         <section className="vendor-stats" aria-label="Menu overview">
           <div>
             <span>Active menu items</span>
-            <strong>{activeItems.length.toString().padStart(2, '0')}</strong>
+            <strong>{String(activeItems.length).padStart(2, '0')}</strong>
             <small>Across your store menu</small>
           </div>
           <div>
             <span>Available now</span>
-            <strong>{availableCount.toString().padStart(2, '0')}</strong>
-            <small>Visible as ready to order</small>
+            <strong>{String(availableCount).padStart(2, '0')}</strong>
+            <small>Marked as ready to order</small>
           </div>
           <div>
             <span>Marked sold out</span>
-            <strong>{unavailableCount.toString().padStart(2, '0')}</strong>
+            <strong>{String(unavailableCount).padStart(2, '0')}</strong>
             <small>Can be restored anytime</small>
           </div>
         </section>
@@ -333,17 +491,24 @@ export default function VendorWorkspace() {
         <section className="vendor-store-panel" aria-labelledby="store-heading">
           <div className="vendor-store-topline">
             <div className="vendor-store-mark" aria-hidden="true">
-              J
+              {store.name.slice(0, 1).toUpperCase()}
             </div>
+
             <div className="vendor-store-title">
               <p className="vendor-eyebrow">Your store</p>
               <h2 id="store-heading">{store.name}</h2>
             </div>
+
             <span
-              className={`vendor-status ${store.status === 'Published' ? 'is-published' : 'is-pending'}`}
+              className={`vendor-status ${
+                store.status === 'Published'
+                  ? 'is-published'
+                  : 'is-pending'
+              }`}
             >
               {store.status}
             </span>
+
             <button
               className="vendor-text-button"
               onClick={() => openStoreForm(true)}
@@ -351,7 +516,38 @@ export default function VendorWorkspace() {
             >
               Edit details
             </button>
+            {storeData && (
+  <button
+    className="vendor-text-button"
+    type="button"
+    onClick={async () => {
+      const confirmed = window.confirm(
+        'Are you sure you want to delete this store? If it has menu items or orders, it will be suspended instead to preserve records.',
+      );
+
+      if (!confirmed) return;
+
+      try {
+        const result = await deleteStore(storeData.id);
+
+        window.alert(result.message);
+
+        if (result.success) {
+          router.push('/vendor');
+          router.refresh();
+        }
+      } catch {
+        window.alert(
+          'Unable to delete the store. Please try again.',
+        );
+      }
+    }}
+  >
+    Delete store
+  </button>
+   )}
           </div>
+
           <div className="vendor-store-details">
             <div>
               <span>Campus</span>
@@ -371,13 +567,15 @@ export default function VendorWorkspace() {
             </div>
             <div>
               <span>Fulfillment</span>
-              <strong>{store.fulfillment.join(' · ') || 'Not set'}</strong>
+              <strong>{store.fulfillment.join(' Â· ') || 'Not set'}</strong>
             </div>
           </div>
-          {store.status === 'Pending review' && (
+
+          {store.status !== 'Published' && (
             <p className="vendor-review-note">
-              Your store is under review and won&apos;t appear in student search
-              until approved.
+              {store.status === 'Suspended'
+                ? 'Your store is suspended. Contact the administrator for more information.'
+                : 'Your store is awaiting review and will not appear in student search until approved.'}
             </p>
           )}
         </section>
@@ -390,6 +588,7 @@ export default function VendorWorkspace() {
                 Menu items <span>{activeItems.length}</span>
               </h2>
             </div>
+
             <div className="vendor-menu-actions">
               <label className="vendor-archived-toggle">
                 <input
@@ -399,6 +598,7 @@ export default function VendorWorkspace() {
                 />
                 Show archived
               </label>
+
               <button
                 className="vendor-button vendor-button-primary"
                 onClick={() => {
@@ -424,6 +624,7 @@ export default function VendorWorkspace() {
                   <h3>New menu item</h3>
                 </div>
               </div>
+
               <div className="vendor-form-grid">
                 <label className="vendor-field">
                   Item name
@@ -443,6 +644,7 @@ export default function VendorWorkspace() {
                     </span>
                   )}
                 </label>
+
                 <label className="vendor-field">
                   Category
                   <select
@@ -459,6 +661,7 @@ export default function VendorWorkspace() {
                     <option>Other</option>
                   </select>
                 </label>
+
                 <label className="vendor-field">
                   Regular price (USD)
                   <input
@@ -479,6 +682,7 @@ export default function VendorWorkspace() {
                     </span>
                   )}
                 </label>
+
                 <label className="vendor-field">
                   Student price (USD){' '}
                   <span className="vendor-field-hint">Optional</span>
@@ -487,7 +691,10 @@ export default function VendorWorkspace() {
                     placeholder="0.00"
                     value={draft.studentPrice}
                     onChange={(event) =>
-                      setDraft({ ...draft, studentPrice: event.target.value })
+                      setDraft({
+                        ...draft,
+                        studentPrice: event.target.value,
+                      })
                     }
                     aria-invalid={Boolean(itemErrors.studentPrice)}
                     aria-describedby={
@@ -505,13 +712,17 @@ export default function VendorWorkspace() {
                     </span>
                   )}
                 </label>
+
                 <label className="vendor-field vendor-field-wide">
                   Description
                   <textarea
                     rows={2}
                     value={draft.description}
                     onChange={(event) =>
-                      setDraft({ ...draft, description: event.target.value })
+                      setDraft({
+                        ...draft,
+                        description: event.target.value,
+                      })
                     }
                     aria-invalid={Boolean(itemErrors.description)}
                     aria-describedby={
@@ -529,6 +740,7 @@ export default function VendorWorkspace() {
                     </span>
                   )}
                 </label>
+
                 <fieldset className="vendor-check-group">
                   <legend>Dietary information</legend>
                   {dietaryOptions.map((option) => (
@@ -542,6 +754,7 @@ export default function VendorWorkspace() {
                     </label>
                   ))}
                 </fieldset>
+
                 <fieldset className="vendor-check-group">
                   <legend>Contains allergens</legend>
                   {allergenOptions.map((option) => (
@@ -556,6 +769,7 @@ export default function VendorWorkspace() {
                   ))}
                 </fieldset>
               </div>
+
               <div className="vendor-form-footer">
                 <p role="status" aria-live="polite">
                   {Object.keys(itemErrors).length
@@ -582,6 +796,7 @@ export default function VendorWorkspace() {
                   <th scope="col" aria-label="Actions" />
                 </tr>
               </thead>
+
               <tbody>
                 {listedItems.map((item) => (
                   <tr
@@ -592,38 +807,43 @@ export default function VendorWorkspace() {
                       <div className="vendor-item-name">
                         <span className="vendor-item-icon" aria-hidden="true">
                           {item.category === 'Bowls'
-                            ? '◉'
+                            ? 'â—‰'
                             : item.category === 'Drinks'
-                              ? '◌'
-                              : '✳'}
+                              ? 'â—Œ'
+                              : 'âœ³'}
                         </span>
                         <div>
                           <strong>{item.name}</strong>
                           <span>
-                            {item.category} · {item.description}
+                            {item.category} Â· {item.description}
                           </span>
                           <small>
                             {[
                               ...item.dietary,
                               ...item.allergens.map(
                                 (allergen) =>
-                                  `Contains ${allergen.toLowerCase()}`
+                                  `Contains ${allergen.toLowerCase()}`,
                               ),
-                            ].join(' · ') || 'No dietary or allergen details'}
+                            ].join(' Â· ') || 'No dietary or allergen details'}
                           </small>
                         </div>
                       </div>
                     </td>
+
                     <td>
                       <strong className="vendor-price">
-                        {item.studentPriceMinor !== null
-                          ? formatMoney(item.studentPriceMinor)
-                          : formatMoney(item.priceMinor)}
+                        {formatMoney(
+                          item.studentPriceMinor ?? item.priceMinor,
+                          storeData?.currency ?? 'USD',
+                        )}
                       </strong>
                       {item.studentPriceMinor !== null && (
                         <>
                           <span className="vendor-price-old">
-                            {formatMoney(item.priceMinor)}
+                            {formatMoney(
+                              item.priceMinor,
+                              storeData?.currency ?? 'USD',
+                            )}
                           </span>
                           <small className="vendor-price-label">
                             Student price
@@ -631,9 +851,16 @@ export default function VendorWorkspace() {
                         </>
                       )}
                     </td>
+
                     <td>
                       <span
-                        className={`vendor-availability ${item.isArchived ? 'is-archived' : item.isAvailable ? 'is-available' : 'is-sold-out'}`}
+                        className={`vendor-availability ${
+                          item.isArchived
+                            ? 'is-archived'
+                            : item.isAvailable
+                              ? 'is-available'
+                              : 'is-sold-out'
+                        }`}
                       >
                         <i aria-hidden="true" />
                         {item.isArchived
@@ -643,6 +870,7 @@ export default function VendorWorkspace() {
                             : 'Sold out'}
                       </span>
                     </td>
+
                     <td className="vendor-row-actions">
                       {!item.isArchived && (
                         <button
@@ -654,6 +882,7 @@ export default function VendorWorkspace() {
                           {item.isAvailable ? 'Mark sold out' : 'Restore'}
                         </button>
                       )}
+
                       <button
                         className="vendor-text-button vendor-archive-button"
                         type="button"
@@ -667,6 +896,7 @@ export default function VendorWorkspace() {
                 ))}
               </tbody>
             </table>
+
             {listedItems.length === 0 && (
               <div className="vendor-empty-state">
                 <strong>
@@ -682,7 +912,23 @@ export default function VendorWorkspace() {
               </div>
             )}
           </div>
-        </section>
+                </section>
+      </>
+    ) : (
+      <section className="vendor-empty-state">
+        <strong>You haven't created a store yet.</strong>
+        <span>
+          Create your first store to manage its details and menu.
+        </span>
+        <button
+          className="vendor-button vendor-button-primary"
+          type="button"
+          onClick={() => openStoreForm(false)}
+        >
+          + Create your first store
+        </button>
+      </section>
+    )}
       </div>
 
       {showStoreForm && (
@@ -690,7 +936,9 @@ export default function VendorWorkspace() {
           className="vendor-modal-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setShowStoreForm(false);
+            if (event.target === event.currentTarget) {
+              setShowStoreForm(false);
+            }
           }}
         >
           <section
@@ -706,25 +954,31 @@ export default function VendorWorkspace() {
                   {editingStore ? 'Edit store details' : 'Create a store'}
                 </h2>
               </div>
+
               <button
                 className="vendor-dialog-close"
                 type="button"
                 aria-label="Close store form"
                 onClick={() => setShowStoreForm(false)}
               >
-                ×
+                Ã—
               </button>
             </div>
-            <form onSubmit={saveStore}>
+
+            <form action={storeFormAction}>
+              {editingStore && storeData && (
+                <input type="hidden" name="storeId" value={storeData.id} />
+              )}
               <div className="vendor-form-grid">
                 <label className="vendor-field">
                   Store name
                   <input
-                    name="storeName"
+                    name="name"
                     required
                     defaultValue={editingStore ? store.name : ''}
                   />
                 </label>
+
                 <label className="vendor-field">
                   Campus
                   <input
@@ -733,6 +987,22 @@ export default function VendorWorkspace() {
                     defaultValue={editingStore ? store.campus : ''}
                   />
                 </label>
+
+                <label className="vendor-field">
+                  Currency
+                  <select
+                    name="currency"
+                    required
+                    defaultValue={storeData?.currency ?? 'XOF'}
+                  >
+                    {currencies.map((currency) => (
+                      <option key={currency.code} value={currency.code}>
+                        {currency.code} â€” {currency.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
                 <label className="vendor-field vendor-field-wide">
                   Street address
                   <input
@@ -741,6 +1011,7 @@ export default function VendorWorkspace() {
                     defaultValue={editingStore ? store.address : ''}
                   />
                 </label>
+
                 <label className="vendor-field vendor-field-wide">
                   Business hours
                   <input
@@ -750,6 +1021,7 @@ export default function VendorWorkspace() {
                     placeholder="Mon-Fri, 11:00 AM-7:00 PM"
                   />
                 </label>
+
                 <label className="vendor-field">
                   Contact email
                   <input
@@ -759,6 +1031,7 @@ export default function VendorWorkspace() {
                     defaultValue={editingStore ? store.contactEmail : ''}
                   />
                 </label>
+
                 <label className="vendor-field">
                   Phone <span className="vendor-field-hint">Optional</span>
                   <input
@@ -767,15 +1040,16 @@ export default function VendorWorkspace() {
                     defaultValue={editingStore ? store.phone : ''}
                   />
                 </label>
+
                 <fieldset className="vendor-check-group vendor-field-wide">
                   <legend>Fulfillment options</legend>
                   <label>
                     <input
-                      name="Pickup"
+                      name="pickup"
                       type="checkbox"
                       defaultChecked={
                         editingStore
-                          ? store.fulfillment.includes('Pickup')
+                          ? store.fulfillment.includes('pickup')
                           : true
                       }
                     />
@@ -783,11 +1057,11 @@ export default function VendorWorkspace() {
                   </label>
                   <label>
                     <input
-                      name="Delivery"
+                      name="delivery"
                       type="checkbox"
                       defaultChecked={
                         editingStore
-                          ? store.fulfillment.includes('Delivery')
+                          ? store.fulfillment.includes('delivery')
                           : false
                       }
                     />
@@ -795,9 +1069,25 @@ export default function VendorWorkspace() {
                   </label>
                 </fieldset>
               </div>
+
+              {storeActionState.message && (
+                <p role="status" aria-live="polite">
+                  {storeActionState.message}
+                </p>
+              )}
+
+              {Object.entries(storeActionState.errors).map(
+                ([field, messages]) => (
+                  <p key={field} role="alert">
+                    {field}: {messages.join(', ')}
+                  </p>
+                ),
+              )}
+
               <p className="vendor-review-note">
-                New and updated store details remain pending review.
+                New stores require review before publication.
               </p>
+
               <div className="vendor-form-footer">
                 <button
                   className="vendor-button vendor-button-secondary"
@@ -806,6 +1096,7 @@ export default function VendorWorkspace() {
                 >
                   Cancel
                 </button>
+
                 <button
                   className="vendor-button vendor-button-primary"
                   type="submit"

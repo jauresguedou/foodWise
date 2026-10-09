@@ -8,6 +8,7 @@ import {
 const validRegistration = {
   name: '  Sam Student ',
   email: ' Sam@BYU.edu ',
+  accountType: 'STUDENT',
   countryCode: 'us',
   consent: 'on',
 };
@@ -17,6 +18,7 @@ describe('registerSchema', () => {
     expect(registerSchema.parse(validRegistration)).toEqual({
       name: 'Sam Student',
       email: 'sam@byu.edu',
+      accountType: 'STUDENT',
       countryCode: 'US',
       consent: 'on',
     });

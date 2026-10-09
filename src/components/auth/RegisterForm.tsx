@@ -33,6 +33,9 @@ export function RegisterForm({
   // Controlled fields, so a failed submit keeps what the student typed.
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [accountType, setAccountType] = useState<'STUDENT' | 'VENDOR'>(
+  'STUDENT'
+   );
   const [countryCode, setCountryCode] = useState('US');
   const [consent, setConsent] = useState(false);
   const [dismissed, setDismissed] = useState<CodeRequestResult | null>(null);
@@ -48,6 +51,7 @@ export function RegisterForm({
     return (
       <CodeForm
         email={result.data.email}
+        accountType={result.data.accountType}
         callbackUrl={callbackUrl}
         onUseDifferentEmail={() => setDismissed(result)}
       />
@@ -81,6 +85,46 @@ export function RegisterForm({
         maxLength={100}
         required
       />
+
+<fieldset className="space-y-3">
+  <legend className="text-sm font-bold text-(--ink)">
+    What type of account do you want?
+  </legend>
+
+  <label className="flex items-start gap-3 rounded-xl border border-(--line) p-4">
+    <input
+      type="radio"
+      name="accountType"
+      value="STUDENT"
+      checked={accountType === 'STUDENT'}
+      onChange={() => setAccountType('STUDENT')}
+      className="mt-1 accent-(--green)"
+    />
+    <span>
+      <strong className="block">Student account</strong>
+      <span className="text-sm text-(--ink-soft)">
+        Discover meals, order food, and access student prices.
+      </span>
+    </span>
+  </label>
+
+  <label className="flex items-start gap-3 rounded-xl border border-(--line) p-4">
+    <input
+      type="radio"
+      name="accountType"
+      value="VENDOR"
+      checked={accountType === 'VENDOR'}
+      onChange={() => setAccountType('VENDOR')}
+      className="mt-1 accent-(--green)"
+    />
+    <span>
+      <strong className="block">Vendor account</strong>
+      <span className="text-sm text-(--ink-soft)">
+        Apply to sell meals on FoodWise. Vendor access requires approval.
+      </span>
+    </span>
+  </label>
+  </fieldset>
 
       <TextField
         ref={emailRef}
@@ -174,7 +218,7 @@ export function RegisterForm({
       </section>
 
       <button type="submit" className={buttonClassName} disabled={pending}>
-        {pending ? 'Sending…' : 'Create account'}
+        {pending ? 'Sendingâ€¦' : 'Create account'}
       </button>
     </form>
   );

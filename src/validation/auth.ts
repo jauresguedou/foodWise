@@ -8,6 +8,8 @@ const emailSchema = z
   .max(254, { error: 'That email address is too long.' })
   .pipe(z.email({ error: 'Enter a valid email address.' }));
 
+export const accountTypeSchema = z.enum(['STUDENT', 'VENDOR']);
+
 export const registerSchema = z.object({
   name: z
     .string({ error: 'Enter your name.' })
@@ -15,6 +17,7 @@ export const registerSchema = z.object({
     .min(1, { error: 'Enter your name.' })
     .max(100, { error: 'Use 100 characters or fewer.' }),
   email: emailSchema,
+  accountType: accountTypeSchema.default('STUDENT'),
   countryCode: z
     .string({ error: 'Choose your country.' })
     .trim()
@@ -29,6 +32,9 @@ export const registerSchema = z.object({
 export const signInSchema = z.object({
   email: emailSchema,
 });
+
+
+
 
 export const verifyCodeSchema = z.object({
   email: emailSchema,

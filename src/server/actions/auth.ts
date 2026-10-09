@@ -21,7 +21,10 @@ import {
 } from '@/src/validation/auth';
 import { type ActionResult, validationFailure } from './result';
 
-export type CodeRequestResult = ActionResult<{ email: string }>;
+export type CodeRequestResult = ActionResult<{
+  email: string;
+  accountType?: 'STUDENT' | 'VENDOR';
+}>;
 
 const TOO_MANY_CODES =
   'Too many codes requested for this email. Wait 15 minutes, then try again.';
@@ -39,7 +42,7 @@ export async function register(
 ): Promise<CodeRequestResult> {
   const parsed = registerSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return validationFailure(parsed.error);
-  const { name, email, countryCode } = parsed.data;
+  const { name, email, countryCode,accountType } = parsed.data;
 
   if (await isCodeSendingBlocked(email)) {
     await recordSecurityEvent('SIGN_IN_RATE_LIMITED', { email });
@@ -51,6 +54,8 @@ export async function register(
     countryCode,
     consentVersion: CONSENT_VERSION,
     consentedAt: new Date(),
+    vendorApplicationRequestedAt:
+        accountType === 'VENDOR' ? new Date() : null,
   };
   const existing = await db.user.findUnique({
     where: { email },
@@ -72,7 +77,7 @@ export async function register(
   }
   // A verified account is left unchanged; its owner just gets a sign-in code.
 
-  return sendSignInCode(email);
+  return sendSignInCode(email, accountType);
 }
 
 // Sign-in step 1. Unknown emails get the same reply, and no email is sent.
@@ -122,6 +127,34 @@ export async function verifySignInCode(
     };
   }
 
+
+const verifiedUser = await db.user.findUnique({
+  where: { email },
+  select: {
+    id: true,
+    emailVerified: true,
+    vendorApplicationRequestedAt: true,
+  },
+});
+
+if (
+  verifiedUser?.emailVerified &&
+  verifiedUser.vendorApplicationRequestedAt
+) {
+  await db.$transaction(async (tx) => {
+    await tx.vendorApplication.upsert({
+      where: { userId: verifiedUser.id },
+      create: { userId: verifiedUser.id },
+      update: {},
+    });
+
+    await tx.user.update({
+      where: { id: verifiedUser.id },
+      data: { vendorApplicationRequestedAt: null },
+    });
+  });
+}
+
   // Outside the try: redirect() works by throwing.
   redirect(safeCallbackUrl(callbackUrl));
 }
@@ -133,7 +166,9 @@ export async function signOut(): Promise<void> {
   redirect('/');
 }
 
-async function sendSignInCode(email: string): Promise<CodeRequestResult> {
+async function sendSignInCode(
+  email: string,
+  accountType?: 'STUDENT' | 'VENDOR'): Promise<CodeRequestResult> {
   try {
     await auth.api.sendVerificationOTP({
       body: { email, type: 'sign-in' },
@@ -143,7 +178,13 @@ async function sendSignInCode(email: string): Promise<CodeRequestResult> {
     console.error('Sending a sign-in code failed:', errorName(error));
     return { ok: false, message: SEND_FAILED };
   }
-  return { ok: true, data: { email } };
+  return {
+  ok: true,
+  data: {
+    email,
+    ...(accountType ? { accountType } : {}),
+  },
+};
 }
 
 function isUniqueViolation(error: unknown): boolean {
