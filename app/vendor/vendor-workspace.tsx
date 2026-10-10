@@ -423,7 +423,7 @@ const [storeActionState, storeFormAction] = useActionState(
         {stores.length > 0 && (
           <div className="vendor-store-selector">
             <label htmlFor="vendor-store-select">
-              Your stores
+              Your stores:
             </label>
 
             <select
@@ -791,7 +791,7 @@ const [storeActionState, storeFormAction] = useActionState(
                         <div>
                           <strong>{item.name}</strong>
                           <span>
-                            {item.category} Â· {item.description}
+                            {item.category} · {item.description}
                           </span>
                           <small>
                             {[
@@ -800,7 +800,7 @@ const [storeActionState, storeFormAction] = useActionState(
                                 (allergen) =>
                                   `Contains ${allergen.toLowerCase()}`,
                               ),
-                            ].join(' Â· ') || 'No dietary or allergen details'}
+                            ].join(' · ') || 'No dietary or allergen details'}
                           </small>
                         </div>
                       </div>
