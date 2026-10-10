@@ -86,3 +86,131 @@ CI runs typecheck, lint, format check, unit tests, build, and the end-to-end sui
 - `tests/unit`: pure logic and client components (Vitest, jsdom)
 - `tests/integration`: queries, actions, and database rules against real Postgres
 - `tests/e2e`: full journeys in a real browser (Playwright), with axe on each page. Needs the Docker database (`npm run db:test:up`). It builds the app and serves it on port 3100 with test-only settings, so it never touches Neon; sign-in codes are written to `test-results/email-outbox/`.
+
+
+
+
+## Product Demo
+
+- **Live application:** https://food-wise-drab.vercel.app/
+
+
+The live application demonstrates FoodWise's student-focused meal discovery experience. Depending on the current deployment and available data, users can explore meals, access their accounts, and use the vendor workspace.
+
+## Deployment
+
+FoodWise is deployed on Vercel and uses PostgreSQL hosted on Neon.
+
+### Production deployment steps
+
+1. Push the reviewed changes to the GitHub branch connected to the Vercel project.
+2. In Vercel, open **Project Settings → Environment Variables**.
+3. Configure the production environment variables required by `.env.example`, including the production database connection and authentication settings.
+4. Configure the production email provider. For example, Brevo requires `EMAIL_TRANSPORT=brevo`, `BREVO_API_KEY`, and `EMAIL_FROM`, with a verified sender address.
+5. Ensure the production database has the required schema and migrations applied. Use `npm run db:deploy` to apply existing migrations in the deployment workflow.
+6. Trigger a production deployment and confirm that the build completes successfully.
+7. Test the live homepage, registration and sign-in flows, account pages, vendor workspace, and database-backed functionality.
+
+**Security:** Never commit `.env.local`, database credentials, API keys, or authentication secrets. Store production secrets in Vercel's environment variable settings. Keep preview and development environments appropriately separated from production data.
+
+For additional configuration details, see the [Next.js environment variables documentation](https://nextjs.org/docs/app/guides/environment-variables).
+
+## API Routes
+
+FoodWise uses Next.js App Router route handlers for server-side API functionality.
+
+### `GET /api/meals`
+
+Returns available menu items from published stores.
+
+**Data selection rules**
+- The menu item must have `isAvailable` set to `true`.
+- The menu item must not be archived (`archivedAt` must be `null`).
+- The associated store must have `status` set to `PUBLISHED`.
+- Results are ordered by creation date, newest first, with a maximum of 100 items.
+
+**Successful response**
+
+```json
+{
+  "meals": [
+    {
+      "id": "example-id",
+      "name": "Example meal",
+      "store": "Example store",
+      "neighborhood": "Example campus",
+      "category": "Bowls",
+      "price": 12.5,
+      "studentPrice": 8.95,
+      "currency": "USD",
+      "available": "Available now",
+      "fulfillment": ["Pickup"],
+      "dietary": ["Vegetarian"],
+      "description": "Example meal description",
+      "accent": "sage"
+    }
+  ]
+}
+```
+
+The example is illustrative; actual values depend on database records. An empty `meals` array is valid when no menu items satisfy the selection rules.
+
+**Error response**
+
+If the database query or response processing fails, the handler returns HTTP `500` with an error message:
+
+```json
+{
+  "error": "Unable to load meals right now."
+}
+```
+
+### Other application routes
+
+The application also includes the following pages and workflows:
+
+- `/` — Home page and meal discovery.
+- `/register` — Account registration.
+- `/login` — Sign-in.
+- `/account` — Profile and student verification status.
+- `/vendor` — Vendor workspace.
+- `/admin` — Administrative area.
+- `/admin/vendor-applications` — Vendor application management.
+
+These are application page routes, not a complete list of API endpoints. Document additional API routes only after verifying them in the repository.
+
+## Known Issues and Opportunities
+
+This section should be updated as testing and development progress. The following items are current verification tasks or potential improvements, not confirmed defects.
+
+### Verification tasks
+
+- **Production data:** Verify that published stores and available, non-archived menu items appear in the live meal explorer.
+- **Database connectivity:** Confirm production database access independently of an empty API response.
+- **Authentication and email:** Test the six-digit sign-in code flow using the configured production email provider.
+- **Vendor workflows:** Verify store management, menu item creation, availability changes, and publishing permissions.
+- **Security and access control:** Test protected pages and server actions for correct authorization and rate limiting.
+
+### Future opportunities
+
+- Add a dedicated API reference covering verified endpoints, response schemas, status codes, and authentication requirements.
+- Add automated production smoke tests for critical user journeys.
+- Improve operational monitoring and error reporting without logging sensitive information.
+- Add screenshots and a short product demonstration video.
+- Document known limitations, reproducible bugs, and planned fixes as they are confirmed.
+
+## Contributing and Quality Checks
+
+Before submitting changes, run the checks relevant to the changes being made:
+
+```bash
+npm run typecheck
+npm run lint
+npm run format:check
+npm test
+npm run build
+```
+
+For database integration and browser testing, follow the instructions in the Database and Tests sections above.
+
+Please avoid committing secrets, personal credentials, or production database records. Review changes before pushing them to the shared repository.
