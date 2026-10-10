@@ -1,9 +1,25 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import type { Meal } from './page';
+import { useEffect, useMemo, useState } from 'react';
 
-type Props = { meals: Meal[] };
+type Meal = {
+  id: string;
+  name: string;
+  store: string;
+  neighborhood: string;
+  category: 'Bowls' | 'Sandwiches' | 'Vegetarian' | 'Breakfast';
+  price: number;
+  studentPrice: number;
+  available: string;
+  fulfillment: string[];
+  dietary: string[];
+  description: string;
+  accent: string;
+};
+
+type MealsResponse = {
+  meals: Meal[];
+};
 const categories = [
   'All meals',
   'Bowls',
@@ -12,7 +28,56 @@ const categories = [
   'Breakfast',
 ] as const;
 
-export default function MealExplorer({ meals }: Props) {
+export default function MealExplorer() {
+  const [meals, setMeals] = useState<Meal[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadMeals() {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const response = await fetch('/api/meals', {
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          throw new Error('Unable to load meals. Please try again.');
+        }
+
+        const data: MealsResponse = await response.json();
+
+        if (!Array.isArray(data.meals)) {
+          throw new Error('The server returned an invalid meals response.');
+        }
+
+        setMeals(data.meals);
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Something went wrong while loading meals.',
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadMeals();
+
+    return () => controller.abort();
+  }, []);
   const [query, setQuery] = useState('');
   const [category, setCategory] =
     useState<(typeof categories)[number]>('All meals');
@@ -95,27 +160,41 @@ export default function MealExplorer({ meals }: Props) {
         ))}
       </div>
 
-      {filteredMeals.length ? (
-        <div className="meal-grid">
-          {filteredMeals.map((meal) => (
-            <MealCard key={meal.id} meal={meal} />
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">
-          <p>No meals match that search.</p>
-          <button
-            type="button"
-            onClick={() => {
-              setQuery('');
-              setCategory('All meals');
-              setDeliveryOnly(false);
-            }}
-          >
-            Clear filters
-          </button>
-        </div>
-      )}
+      {isLoading ? (
+  <div className="empty-state" role="status">
+    <p>Loading meals...</p>
+  </div>
+) : error ? (
+  <div className="empty-state" role="alert">
+    <p>{error}</p>
+    <button
+      type="button"
+      onClick={() => window.location.reload()}
+    >
+      Try again
+    </button>
+  </div>
+) : filteredMeals.length ? (
+  <div className="meal-grid">
+    {filteredMeals.map((meal) => (
+      <MealCard key={meal.id} meal={meal} />
+    ))}
+  </div>
+) : (
+  <div className="empty-state">
+    <p>No meals match that search.</p>
+    <button
+      type="button"
+      onClick={() => {
+        setQuery('');
+        setCategory('All meals');
+        setDeliveryOnly(false);
+      }}
+    >
+      Clear filters
+    </button>
+  </div>
+)}
     </section>
   );
 }

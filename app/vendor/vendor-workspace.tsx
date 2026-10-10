@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useActionState, useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useActionState, useCallback,  useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import './vendor-workspace.css';
@@ -106,55 +106,7 @@ const allergenOptions = [
   'Sesame',
 ];
 
-const demoStore: Store = {
-  name: 'Juniper & Grain',
-  campus: 'North Campus',
-  address: '18 College Avenue',
-  hours: 'Mon-Fri, 11:00 AM-7:00 PM',
-  contactEmail: 'hello@juniper.example',
-  phone: '(555) 014-2026',
-  fulfillment: ['pickup', 'delivery'],
-  status: 'Pending review',
-};
 
-const demoItems: MenuItem[] = [
-  {
-    id: 'demo-1',
-    name: 'Harvest grain bowl',
-    category: 'Bowls',
-    description: 'Roasted squash, farro, greens, pepitas, and lemon tahini.',
-    priceMinor: 1250,
-    studentPriceMinor: 895,
-    dietary: ['Vegetarian'],
-    allergens: ['Wheat', 'Sesame'],
-    isAvailable: true,
-    isArchived: false,
-  },
-  {
-    id: 'demo-2',
-    name: 'Crispy tofu greens',
-    category: 'Bowls',
-    description: 'Ginger tofu, brown rice, cabbage, and sesame-lime dressing.',
-    priceMinor: 1100,
-    studentPriceMinor: 850,
-    dietary: ['Vegan', 'Dairy-free'],
-    allergens: ['Soy', 'Sesame'],
-    isAvailable: true,
-    isArchived: false,
-  },
-  {
-    id: 'demo-3',
-    name: 'Tomato soup & toast',
-    category: 'Sides',
-    description: 'Slow-roasted tomato soup with sourdough toast.',
-    priceMinor: 800,
-    studentPriceMinor: null,
-    dietary: ['Vegetarian'],
-    allergens: ['Wheat'],
-    isAvailable: false,
-    isArchived: false,
-  },
-];
 
 const emptyDraft: ItemDraft = {
   name: '',
@@ -205,7 +157,9 @@ export default function VendorWorkspace({
   );
 
   const selectedStore =
-    stores.find((item) => item.id === selectedStoreId) ?? null;
+  stores.find((item) => item.id === selectedStoreId) ??
+  stores[0] ??
+  null;
 
   const storeData = selectedStore;
 
@@ -258,36 +212,58 @@ const [storeActionState, storeFormAction] = useActionState(
   initialStoreActionState,
 );
 
-  const [items, setItems] = useState<MenuItem[]>([]);
 
-  useEffect(() => {
-    setSelectedStoreId((current) => {
-      if (current && stores.some((item) => item.id === current)) {
-        return current;
-      }
+  const [itemsByStoreId, setItemsByStoreId] = useState<
+    Record<string, MenuItem[]>
+  >({});
 
-      return stores[0]?.id ?? null;
+  const items: MenuItem[] = selectedStore
+    ? (itemsByStoreId[selectedStore.id] ??
+      selectedStore.menuItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        description: item.description,
+        priceMinor: item.priceMinor,
+        studentPriceMinor: item.studentPriceMinor,
+        dietary: [...item.dietaryTags],
+        allergens: [...item.allergens],
+        isAvailable: item.isAvailable,
+        isArchived: item.archivedAt !== null,
+      })))
+    : [];
+
+  function setItems(
+    updater: MenuItem[] | ((current: MenuItem[]) => MenuItem[]),
+  ) {
+    if (!selectedStore) return;
+
+    setItemsByStoreId((current) => {
+      const currentItems =
+        current[selectedStore.id] ??
+        selectedStore.menuItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          description: item.description,
+          priceMinor: item.priceMinor,
+          studentPriceMinor: item.studentPriceMinor,
+          dietary: [...item.dietaryTags],
+          allergens: [...item.allergens],
+          isAvailable: item.isAvailable,
+          isArchived: item.archivedAt !== null,
+        }));
+
+      return {
+        ...current,
+        [selectedStore.id]:
+          typeof updater === 'function'
+            ? updater(currentItems)
+            : updater,
+      };
     });
-  }, [stores]);
+  }
 
-  useEffect(() => {
-    setItems(
-      selectedStore
-        ? selectedStore.menuItems.map((item) => ({
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            description: item.description,
-            priceMinor: item.priceMinor,
-            studentPriceMinor: item.studentPriceMinor,
-            dietary: [...item.dietaryTags],
-            allergens: [...item.allergens],
-            isAvailable: item.isAvailable,
-            isArchived: item.archivedAt !== null,
-          }))
-        : [],
-    );
-  }, [selectedStore]);
 
 
   const [showItemForm, setShowItemForm] = useState(false);
@@ -459,7 +435,7 @@ const [storeActionState, storeFormAction] = useActionState(
             >
               {stores.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name} â€” {item.campus}
+                  {item.name}  {item.campus}
                 </option>
               ))}
             </select>
@@ -916,7 +892,7 @@ const [storeActionState, storeFormAction] = useActionState(
       </>
     ) : (
       <section className="vendor-empty-state">
-        <strong>You haven't created a store yet.</strong>
+        <strong>You haven&apos;t created a store yet.</strong>
         <span>
           Create your first store to manage its details and menu.
         </span>
